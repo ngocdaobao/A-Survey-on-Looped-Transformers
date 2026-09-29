@@ -81,7 +81,7 @@ A set of unique blocks is reused following sequence/cycle patterns.
 
 - **[Lessons on Parameter Sharing across Layers in Transformers](https://aclanthology.org/2023.sustainlp-1.5/)** — Sho Takase, Shun Kiyono. *SustaiNLP @ ACL 2023.*
 - **[Relaxed Recursive Transformers: Effective Parameter Sharing with Layer-Wise LoRA](https://arxiv.org/abs/2410.20672)** — Sangmin Bae, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Seungyeon Kim, Tal Schuster. *ICLR 2025.*
-- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://arxiv.org/abs/2507.10524)** — Sangmin Bae et al. *arXiv, 2025.*
+- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://arxiv.org/abs/2507.10524)** — Sangmin Bae et al. *NeurIPS 2025.*
 
 ## A5. Component-Level
 
@@ -164,7 +164,7 @@ Depth is allocated before recurrent computation begins.
 
 - **[CoTFormer: A Chain of Thought Driven Architecture with Budget-Adaptive Computation Cost at Inference](https://proceedings.iclr.cc/paper_files/paper/2025/hash/1eaa5146756be028ad6fff1efcc8e6bd-Abstract-Conference.html)** — Amirkeivan Mohtashami, Matteo Pagliardini, Martin Jaggi. *ICLR 2025.*
 - **[Inner Thinking Transformer](https://aclanthology.org/2025.acl-long.1369/)** — Yilong Chen et al. *ACL 2025.*
-- **[Mixture-of-Recursions](https://arxiv.org/abs/2507.10524)** — Sangmin Bae et al. *arXiv, 2025.*
+- **[Mixture-of-Recursions](https://arxiv.org/abs/2507.10524)** — Sangmin Bae et al. *NeurIPS 2025.*
 - **[Skip a Layer or Loop It? Test-Time Depth Adaptation of Pretrained LLMs](https://arxiv.org/abs/2507.07996)** — Ziyue Li, Yang Li, Tianyi Zhou. *arXiv, 2025.*
 - **[Think-at-Hard: Dynamic Looped Transformers for Improved Reasoning](https://arxiv.org/abs/2511.08577)** — Tianyu Fu et al. *arXiv, 2025.*
 - **[Skip a Layer or Loop It? Learning Program-of-Layers in LLMs](https://arxiv.org/abs/2606.06574)** — Ziyue Li, Yang Li, Tianyi Zhou. *arXiv, 2026.*
@@ -389,7 +389,7 @@ A separate KV cache is retained for every loop.
 
 KV states from the first recurrence are reused.
 
-- **[Mixture-of-Recursions](https://arxiv.org/abs/2507.10524)** — Sangmin Bae et al. *arXiv, 2025.*
+- **[Mixture-of-Recursions](https://arxiv.org/abs/2507.10524)** — Sangmin Bae et al. *NeurIPS 2025.*
 - **[Parallel Loop Transformer](https://arxiv.org/abs/2510.24824)** — Bohong Wu et al. *arXiv, 2025.*
 - **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741)** — Rui-Jie Zhu et al. *arXiv, 2025.*
 
@@ -397,7 +397,7 @@ KV states from the first recurrence are reused.
 
 Only active token states are stored or one cache is updated with a gate.
 
-- **[Mixture-of-Recursions](https://arxiv.org/abs/2507.10524)** — Sangmin Bae et al. *arXiv, 2025.*
+- **[Mixture-of-Recursions](https://arxiv.org/abs/2507.10524)** — Sangmin Bae et al. *NeurIPS 2025.*
 - **[AdaPonderLM](https://arxiv.org/abs/2603.01914)** — Shixiang Song et al. *arXiv, 2026.*
 - **[Memory-Efficient Looped Transformer](https://arxiv.org/abs/2605.07721)** — Victor Conchello Vendrell et al. *arXiv, 2026.*
 
