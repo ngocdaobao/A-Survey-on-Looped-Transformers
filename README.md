@@ -45,7 +45,7 @@ The whole transformer stack/shared block is repeatedly applied.
 - **[Memory-Efficient Looped Transformer: Decoupling Compute from Memory in Looped Language Models](https://arxiv.org/abs/2605.07721)** — Victor Conchello Vendrell et al. *arXiv, 2026.*
 - **[Fixed-Point Reasoners: Stable and Adaptive Deep Looped Transformers](https://arxiv.org/abs/2606.18206)** — Sajad Movahedi et al. *arXiv, 2026.*
 - **[Nanbeige4.2-3B: Unlocking Agentic Capabilities in a Compact Model](https://arxiv.org/abs/2607.22083)** — Nanbeige Lab et al. *arXiv, 2026.*
-- **[Looped State-Space Language Models with Adaptive Exit-State Selection](https://arxiv.org/abs/2607.10110)** — Zhenxuan Yu, Takeshi Kojima, Yutaka Matsuo, Yusuke Iwasawa. *arXiv, 2026.*
+- **[CHASE: Cache-Hole-Adapted Skip Exit for Looped State-Space Language Models](https://arxiv.org/abs/2607.10110)** — Zhenxuan Yu, Takeshi Kojima, Yutaka Matsuo, Yusuke Iwasawa. *arXiv, 2026.*
 
 ## A2. Sandwich: Prelude → Shared Core → Coda
 
@@ -156,7 +156,7 @@ The stopping decision is made while recurrence is running.
 - **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741)** — Rui-Jie Zhu et al. *arXiv, 2025.*
 - **[AdaPonderLM](https://arxiv.org/abs/2603.01914)** — Shixiang Song et al. *arXiv, 2026.*
 - **[LoopUS](https://arxiv.org/abs/2605.11011)** — Taekhyun Park et al. *arXiv, 2026.*
-- **[Looped State-Space Language Models with Adaptive Exit-State Selection](https://arxiv.org/abs/2607.10110)** — Zhenxuan Yu et al. *arXiv, 2026.*
+- **[CHASE: Cache-Hole-Adapted Skip Exit for Looped State-Space Language Models](https://arxiv.org/abs/2607.10110)** — Zhenxuan Yu et al. *arXiv, 2026.*
 
 ## B5. Learned Up-Front Routing
 
@@ -166,7 +166,7 @@ Depth is allocated before recurrent computation begins.
 - **[Inner Thinking Transformer](https://aclanthology.org/2025.acl-long.1369/)** — Yilong Chen et al. *ACL 2025.*
 - **[Mixture-of-Recursions](https://arxiv.org/abs/2507.10524)** — Sangmin Bae et al. *arXiv, 2025.*
 - **[Skip a Layer or Loop It? Test-Time Depth Adaptation of Pretrained LLMs](https://arxiv.org/abs/2507.07996)** — Ziyue Li, Yang Li, Tianyi Zhou. *arXiv, 2025.*
-- **[Think-at-Hard: Selective Latent Iterations to Improve Reasoning Language Models](https://arxiv.org/abs/2511.08577)** — Tianyu Fu et al. *arXiv, 2025.*
+- **[Think-at-Hard: Dynamic Looped Transformers for Improved Reasoning](https://arxiv.org/abs/2511.08577)** — Tianyu Fu et al. *arXiv, 2025.*
 - **[Skip a Layer or Loop It? Learning Program-of-Layers in LLMs](https://arxiv.org/abs/2606.06574)** — Ziyue Li, Yang Li, Tianyi Zhou. *arXiv, 2026.*
 
 ## B6. Convergence Test / Training-Free Halting
