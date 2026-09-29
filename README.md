@@ -57,6 +57,7 @@ Only the middle recurrent core is shared/looped.
 - **[Encode, Think, Decode: Scaling Test-Time Reasoning with Recursive Latent Thoughts](https://arxiv.org/abs/2510.07358)** — Yeskendir Koishekenov, Aldo Lipani, Nicola Cancedda. *arXiv, 2025.*
 - **[Teaching Pretrained Language Models to Think Deeper with Retrofitted Recurrence](https://arxiv.org/abs/2511.07384)** — Sean McLeish et al. *arXiv, 2025.*
 - **[Parcae: Scaling Laws for Stable Looped Language Models](https://arxiv.org/abs/2604.12946)** — Hayden Prairie et al. *arXiv, 2026.*
+- **[How Much Is One Recurrence Worth? Iso-Depth Scaling Laws for Looped Language Models](https://arxiv.org/abs/2604.21106)** — Kristian Schwethelm, Daniel Rueckert, Georgios Kaissis. *arXiv, 2026.*
 - **[Hyperloop Transformers](https://arxiv.org/abs/2604.21254)** — Abbas Zeitoun, Lucas Torroba-Hennigen, Yoon Kim. *arXiv, 2026.*
 - **[Sparse Layers Are Critical to Scaling Looped Language Models](https://arxiv.org/abs/2605.09165)** — Ryan Lee, Jacob Biloki, Edward J. Hu, Jonathan May. *arXiv, 2026.*
 - **[LoopUS: Recasting Pretrained LLMs into Looped Latent Refinement Models](https://arxiv.org/abs/2605.11011)** — Taekhyun Park, Yongjae Lee, Dohee Kim, Hyerim Bae. *arXiv, 2026.*
