@@ -31,17 +31,19 @@ The taxonomy organizes looped Transformers along three complementary design axes
   <a href="assets/taxonomy.pdf"><img src="assets/taxonomy.png" width="100%" alt="Taxonomy of Looped Transformers: architecture, training, and inference"></a>
 </p>
 
+<p align="center"><em>Taxonomy of looped Transformers with representative works. Architecture, training, and inference are complementary design axes; the examples are not exhaustive, and individual works may appear in multiple branches.</em></p>
+
 ## Architecture
 
-Architecture specifies the repeated computation, its parameter-sharing scheme, and the state passed between iterations. Together, these choices determine what each recurrent update can do.
+> Architecture specifies the repeated computation, its parameter-sharing scheme, and the state passed between iterations. Together, these choices determine what each recurrent update can do.
 
 ### Recurrence Structure
 
-The repeated unit, its placement, and its execution order define the recurrence structure; interacting modules may also operate at different timescales.
+> The repeated unit, its placement, and its execution order define the recurrence structure; interacting modules may also operate at different timescales.
 
 #### Repeated unit
 
-Each recurrence reapplies either a single Transformer layer or a block of distinct layers, so equal loop counts can represent different effective depths.
+> Each recurrence reapplies either a single Transformer layer or a block of distinct layers, so equal loop counts can represent different effective depths.
 
 - **[Inner Thinking Transformer: Leveraging Dynamic Depth Scaling to Foster Adaptive Internal Thinking](https://aclanthology.org/2025.acl-long.1369/)** — Yilong Chen, Junyuan Shang, Zhenyu Zhang, Yanxi Xie, Jiawei Sheng, Tingwen Liu, Shuohuan Wang, Yu Sun, Hua Wu, Haifeng Wang. (ACL 2025)
 - **[Relaxed Recursive Transformers: Effective Parameter Sharing with Layer-wise LoRA](https://proceedings.iclr.cc/paper_files/paper/2025/file/54d6a55225cebbdc16fbb0e45c5bdf2b-Paper-Conference.pdf)** — Sangmin Bae, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Seungyeon Kim, Tal Schuster. (ICLR 2025)
@@ -55,7 +57,7 @@ Each recurrence reapplies either a single Transformer layer or a block of distin
 
 #### Placement and order
 
-Recurrence can span most of the network or sit within an internal core; shared layers can follow sequential, cyclic, or reversed-cyclic reuse orders. Parallel loop architectures modify cross-loop dependencies to allow overlapping computation.
+> Recurrence can span most of the network or sit within an internal core; shared layers can follow sequential, cyclic, or reversed-cyclic reuse orders. Parallel loop architectures modify cross-loop dependencies to allow overlapping computation.
 
 - **[LoopCoder-v2: Only Loop Once for Efficient Test-Time Computation Scaling](https://arxiv.org/abs/2606.18023)** — Jian Yang, Shawn Guo, Wei Zhang, Tianyu Zheng, Yaxin Du, Haau-Sing Li, Jiajun Wu, Yue Song, Yan Xing, Qingsong Cai, Zelong Huang, Chuan Hao, Ran Tao, Xianglong Liu, Wayne Xin Zhao, Mingjie Tang, Weifeng Lv, Ming Zhou, Bryan Dai. (arXiv 2026)
 - **[Parcae: Scaling Laws For Stable Looped Language Models](https://arxiv.org/abs/2604.12946)** — Hayden Prairie, Zachary Novack, Taylor Berg-Kirkpatrick, Daniel Y. Fu. (arXiv 2026)
@@ -69,18 +71,18 @@ Recurrence can span most of the network or sit within an internal core; shared l
 
 #### Coupled recurrence
 
-Hierarchical Reasoning Model (HRM) and HRM-Text couple low-level and high-level modules with separate states, performing multiple low-level updates for each high-level update.
+> Hierarchical Reasoning Model (HRM) and HRM-Text couple low-level and high-level modules with separate states, performing multiple low-level updates for each high-level update.
 
 - **[Hierarchical Reasoning Model](https://arxiv.org/abs/2506.21734)** — Guan Wang, Jin Li, Yuhao Sun, Xing Chen, Changling Liu, Yue Wu, Meng Lu, Sen Song, Yasin Abbasi Yadkori. (arXiv 2026)
 - **[HRM-Text: Efficient Pretraining Beyond Scaling](https://arxiv.org/pdf/2605.20613)** — Guan Wang, Changling Liu, Chenyu Wang, Cai Zhou, Yuhao Sun, Yifei Wu, Shuai Zhen, Luca Scimeca, Yasin Abbasi Yadkori. (arXiv 2026)
 
 ### Parameter Sharing
 
-Sharing is characterized by the components that reuse parameters and any additions specific to individual iterations or auxiliary controllers.
+> Sharing is characterized by the components that reuse parameters and any additions specific to individual iterations or auxiliary controllers.
 
 #### Sharing scope
 
-Attention parameters, feed-forward parameters, or both can be shared across recurrent applications.
+> Attention parameters, feed-forward parameters, or both can be shared across recurrent applications.
 
 - **[MoEUT: Mixture-of-Experts Universal Transformers](https://proceedings.neurips.cc/paper_files/paper/2024/file/321387ba926b8e58d3591c0aeb52ffc2-Paper-Conference.pdf)** — Róbert Csordás, Kazuki Irie, Jürgen Schmidhuber, Christopher Potts, Christopher D. Manning. (NeurIPS 2024)
 - **[Subformer: Exploring Weight Sharing for Parameter Efficiency in Generative Transformers](https://aclanthology.org/2021.findings-emnlp.344.pdf)** — Machel Reid, Edison Marrese-Taylor, Yutaka Matsuo. (Findings of EMNLP 2021)
@@ -89,7 +91,7 @@ Attention parameters, feed-forward parameters, or both can be shared across recu
 
 #### Iteration-specific parameters
 
-A shared core can be augmented with depth-specific low-rank corrections, learned iteration signals, hyper-connections, or recursion-specific routing parameters.
+> A shared core can be augmented with depth-specific low-rank corrections, learned iteration signals, hyper-connections, or recursion-specific routing parameters.
 
 - **[Hyperloop Transformers](https://arxiv.org/abs/2604.21254)** — Abbas Zeitoun, Lucas Torroba-Hennigen, Yoon Kim. (arXiv 2026)
 - **[MeSH: Memory-as-State-Highways for Recursive Transformers](https://proceedings.iclr.cc/paper_files/paper/2026/file/ef12378d988ef4dac37b200d1906056a-Paper-Conference.pdf)** — Chengting Yu, Xiaobo Shu, Yadao Wang, Yizhen Zhang, Haoyi Wu, Jiaang Li, Rujiao Long, Ziheng Chen, Yuchi Xu, wenbo su, Bo Zheng. (ICLR 2026)
@@ -100,7 +102,7 @@ A shared core can be augmented with depth-specific low-rank corrections, learned
 
 #### Iteration conditioning and expert selection
 
-Timestep or level signals, progress and step-size conditioning, and changing expert selections allow a shared core to perform different computations at successive depths.
+> Timestep or level signals, progress and step-size conditioning, and changing expert selections allow a shared core to perform different computations at successive depths.
 
 - **[LoopFormer: Elastic-Depth Looped Transformers for Latent Reasoning via Shortcut Modulation](https://openreview.net/pdf?id=RzYXb5YWBs)** — Ahmadreza Jeddi, Marco Ciccone, Babak Taati. (ICLR 2026)
 - **[On Expressive Power of Looped Transformers: Theoretical Analysis and Enhancement via Timestep Encoding](https://proceedings.mlr.press/v267/xu25x.html)** — Kevin Xu, Issei Sato. (ICML 2025)
@@ -111,11 +113,11 @@ Timestep or level signals, progress and step-size conditioning, and changing exp
 
 ### State and Information Flow
 
-The recurrent transition depends on how states are initialized, how input remains available, and what information is carried between updates.
+> The recurrent transition depends on how states are initialized, how input remains available, and what information is carried between updates.
 
 #### Input access
 
-Input representations can initialize the recurrent state once or remain available through persistent conditioning at every update.
+> Input representations can initialize the recurrent state once or remain available through persistent conditioning at every update.
 
 - **[Parcae: Scaling Laws For Stable Looped Language Models](https://arxiv.org/abs/2604.12946)** — Hayden Prairie, Zachary Novack, Taylor Berg-Kirkpatrick, Daniel Y. Fu. (arXiv 2026)
 - **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
@@ -124,7 +126,7 @@ Input representations can initialize the recurrent state once or remain availabl
 
 #### Updates and feedback
 
-Gates, routing weights, and constrained state mixing control recurrent updates. DiscoLoop feeds probability-weighted token embeddings into the evolving hidden state, while PonderLM accumulates them in the input representation supplied to subsequent model calls.
+> Gates, routing weights, and constrained state mixing control recurrent updates. DiscoLoop feeds probability-weighted token embeddings into the evolving hidden state, while PonderLM accumulates them in the input representation supplied to subsequent model calls.
 
 - **[DiscoLoop: Looping Discrete Embeddings and Continuous Hidden States for Multi-hop Reasoning](https://arxiv.org/pdf/2607.00341)** — Hengyu Fu, Tianyu Guo, Zixuan Wang, Hanlin Zhu, Jason D. Lee, Jiantao Jiao, Stuart Russell, Song Mei. (arXiv 2026)
 - **[Parcae: Scaling Laws For Stable Looped Language Models](https://arxiv.org/abs/2604.12946)** — Hayden Prairie, Zachary Novack, Taylor Berg-Kirkpatrick, Daniel Y. Fu. (arXiv 2026)
@@ -135,7 +137,7 @@ Gates, routing weights, and constrained state mixing control recurrent updates. 
 
 #### State organization
 
-Recurrent state can use a memory buffer, parallel residual streams, or representations at multiple sequence resolutions to carry information between updates.
+> Recurrent state can use a memory buffer, parallel residual streams, or representations at multiple sequence resolutions to carry information between updates.
 
 - **[Hyperloop Transformers](https://arxiv.org/abs/2604.21254)** — Abbas Zeitoun, Lucas Torroba-Hennigen, Yoon Kim. (arXiv 2026)
 - **[MeSH: Memory-as-State-Highways for Recursive Transformers](https://proceedings.iclr.cc/paper_files/paper/2026/file/ef12378d988ef4dac37b200d1906056a-Paper-Conference.pdf)** — Chengting Yu, Xiaobo Shu, Yadao Wang, Yizhen Zhang, Haoyi Wu, Jiaang Li, Rujiao Long, Ziheng Chen, Yuchi Xu, wenbo su, Bo Zheng. (ICLR 2026)
@@ -143,15 +145,15 @@ Recurrent state can use a memory buffer, parallel residual streams, or represent
 
 ## Training
 
-Training determines how repeated computation becomes useful through initialization, depth exposure, supervision, and optimization. Forward depth, supervised iterations, and the gradient horizon are separate choices.
+> Training determines how repeated computation becomes useful through initialization, depth exposure, supervision, and optimization. Forward depth, supervised iterations, and the gradient horizon are separate choices.
 
 ### Parameter Initialization and Adaptation
 
-Recurrent models can be trained from scratch or constructed from pretrained models, with different costs for pretraining, adaptation, and inference.
+> Recurrent models can be trained from scratch or constructed from pretrained models, with different costs for pretraining, adaptation, and inference.
 
 #### From scratch
 
-Shared recurrent computation is learned from the beginning of model training.
+> Shared recurrent computation is learned from the beginning of model training.
 
 - **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
 - **[Parcae: Scaling Laws For Stable Looped Language Models](https://arxiv.org/abs/2604.12946)** — Hayden Prairie, Zachary Novack, Taylor Berg-Kirkpatrick, Daniel Y. Fu. (arXiv 2026)
@@ -161,7 +163,7 @@ Shared recurrent computation is learned from the beginning of model training.
 
 #### Retrofitting
 
-Pretrained layers are converted into recurrent computation, with options for further training or reuse of frozen parameters.
+> Pretrained layers are converted into recurrent computation, with options for further training or reuse of frozen parameters.
 
 - **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
 - **[Training-Free Looped Transformers](https://arxiv.org/pdf/2605.23872)** — Lizhang Chen, Jonathan Li, Chen Liang, Ni Lao, Qiang Liu. (arXiv 2026)
@@ -171,11 +173,11 @@ Pretrained layers are converted into recurrent computation, with options for fur
 
 ### Training-Depth Exposure
 
-The depths executed during training provide the reference for evaluating generalization; depth extrapolation requires exceeding the maximum depth actually encountered.
+> The depths executed during training provide the reference for evaluating generalization; depth extrapolation requires exceeding the maximum depth actually encountered.
 
 #### Forward depth
 
-Training can execute a fixed recurrence count, sample depths, or route tokens under depth and capacity constraints. In RL-Halting, training unrolls to a depth cap to construct a stopping distribution, while the prediction loss is evaluated at a sampled exit.
+> Training can execute a fixed recurrence count, sample depths, or route tokens under depth and capacity constraints. In RL-Halting, training unrolls to a depth cap to construct a stopping distribution, while the prediction loss is evaluated at a sampled exit.
 
 - **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
 - **[How Much Is One Recurrence Worth? Iso-Depth Scaling Laws for Looped Language Models](https://arxiv.org/abs/2604.21106)** — Kristian Schwethelm, Daniel Rueckert, Georgios Kaissis. (arXiv 2026)
@@ -190,7 +192,7 @@ Training can execute a fixed recurrence count, sample depths, or route tokens un
 
 #### Depth variation
 
-Recurrence counts or their sampling distributions can follow a training schedule. Task-derived counts can also assign different depths to individual examples.
+> Recurrence counts or their sampling distributions can follow a training schedule. Task-derived counts can also assign different depths to individual examples.
 
 - **[Enhancing Auto-regressive Chain-of-Thought through Loop-Aligned Reasoning](https://aclanthology.org/2026.eacl-long.97.pdf)** — Qifan Yu, Zhenyu He, Sijie Li, Zhou Xun, Jun Zhang, Jingjing Xu, Di He. (EACL 2026)
 - **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
@@ -200,11 +202,11 @@ Recurrence counts or their sampling distributions can follow a training schedule
 
 ### Supervision and Objectives
 
-Training objectives specify which recurrent states receive prediction losses, what they should predict, and how computation allocation is encouraged.
+> Training objectives specify which recurrent states receive prediction losses, what they should predict, and how computation allocation is encouraged.
 
 #### Prediction losses
 
-Prediction losses can supervise the final iteration, a selected window, multiple intermediate predictions, or supervision-segment boundaries. Weights can be fixed or derived from learned exit probabilities; RL-Halting evaluates the task loss at a sampled exit.
+> Prediction losses can supervise the final iteration, a selected window, multiple intermediate predictions, or supervision-segment boundaries. Weights can be fixed or derived from learned exit probabilities; RL-Halting evaluates the task loss at a sampled exit.
 
 - **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
 - **[HRM-Text: Efficient Pretraining Beyond Scaling](https://arxiv.org/pdf/2605.20613)** — Guan Wang, Changling Liu, Chenyu Wang, Cai Zhou, Yuhao Sun, Yifei Wu, Shuai Zhen, Luca Scimeca, Yasin Abbasi Yadkori. (arXiv 2026)
@@ -221,7 +223,7 @@ Prediction losses can supervise the final iteration, a selected window, multiple
 
 #### Target alignment
 
-Structured targets can align reasoning steps with recurrent iterations or with latent sequence positions after recurrence.
+> Structured targets can align reasoning steps with recurrent iterations or with latent sequence positions after recurrence.
 
 - **[Bridging the Gap Between Latent and Explicit Reasoning with Looped Transformers](https://arxiv.org/pdf/2606.31779)** — Ying Fan, Anej Svete, Kangwook Lee. (arXiv 2026)
 - **[Enhancing Auto-regressive Chain-of-Thought through Loop-Aligned Reasoning](https://aclanthology.org/2026.eacl-long.97.pdf)** — Qifan Yu, Zhenyu He, Sijie Li, Zhou Xun, Jun Zhang, Jingjing Xu, Di He. (EACL 2026)
@@ -229,14 +231,14 @@ Structured targets can align reasoning steps with recurrent iterations or with l
 
 #### Loss after state aggregation
 
-Intermediate states or predictions can be combined before applying a main prediction loss, with auxiliary supervision of individual states in some designs.
+> Intermediate states or predictions can be combined before applying a main prediction loss, with auxiliary supervision of individual states in some designs.
 
 - **[LoopMTP: A looped transformer guided by latent multi-token prediction](https://arxiv.org/pdf/2608.03624)** — Behzad Shomali, Markus Frey, David Berghaus, Joachim Koehler, Mehdi Ali. (arXiv 2026)
 - **[Universal Transformers](https://openreview.net/pdf?id=HyzdRiR9Y7)** — Mostafa Dehghani, Stephan Gouws, Oriol Vinyals, Jakob Uszkoreit, Lukasz Kaiser. (ICLR 2019)
 
 #### Allocation objectives
 
-Ponder costs and exit-distribution regularization shape learned computation budgets. Routing objectives supervise causal token assignments and balance capacity across depths.
+> Ponder costs and exit-distribution regularization shape learned computation budgets. Routing objectives supervise causal token assignments and balance capacity across depths.
 
 - **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
 - **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
@@ -246,18 +248,18 @@ Ponder costs and exit-distribution regularization shape learned computation budg
 
 #### Reinforcement objectives
 
-Policy-gradient objectives can train stopping decisions, while reinforcement learning over recurrent latent trajectories can reward useful intermediate computation and final outputs.
+> Policy-gradient objectives can train stopping decisions, while reinforcement learning over recurrent latent trajectories can reward useful intermediate computation and final outputs.
 
 - **[Prioritize the Process, Not Just the Outcome: Rewarding Latent Thought Trajectories Improves Reasoning in Looped Language Models](https://openreview.net/forum?id=cPAgJwcn3h)** — Jonathan Williams, Olga Russakovsky, Esin Tureci. (ICML 2026)
 - **[Stabilizing Extrapolation in Looped Transformers via Learned Stochastic Stopping](https://openreview.net/forum?id=xExWu1Bhuw)** — Hsun-Yu Kuo, El Mahdi Chayti, Patrik Reizinger, Wieland Brendel, Martin Jaggi. (AdaptFM 2026)
 
 ### Gradients and Stability
 
-Loss placement, gradient propagation, and activation storage shape optimization in different ways, alongside the stability of recurrent states and exit gates.
+> Loss placement, gradient propagation, and activation storage shape optimization in different ways, alongside the stability of recurrent states and exit gates.
 
 #### Gradient paths
 
-Truncated backpropagation limits the recurrent dependencies that receive gradients. TRM-Att, the Transformer variant of Less is More, retains gradients through the final complete recursion of each supervision segment and detaches states between segments. LoopFormer also uses stop-gradient consistency targets between trajectory endpoints.
+> Truncated backpropagation limits the recurrent dependencies that receive gradients. TRM-Att, the Transformer variant of Less is More, retains gradients through the final complete recursion of each supervision segment and detaches states between segments. LoopFormer also uses stop-gradient consistency targets between trajectory endpoints.
 
 - **[HRM-Text: Efficient Pretraining Beyond Scaling](https://arxiv.org/pdf/2605.20613)** — Guan Wang, Changling Liu, Chenyu Wang, Cai Zhou, Yuhao Sun, Yifei Wu, Shuai Zhen, Luca Scimeca, Yasin Abbasi Yadkori. (arXiv 2026)
 - **[LoopFormer: Elastic-Depth Looped Transformers for Latent Reasoning via Shortcut Modulation](https://openreview.net/pdf?id=RzYXb5YWBs)** — Ahmadreza Jeddi, Marco Ciccone, Babak Taati. (ICLR 2026)
@@ -268,13 +270,13 @@ Truncated backpropagation limits the recurrent dependencies that receive gradien
 
 #### Activation storage
 
-Activation checkpointing reduces memory use by recomputing intermediate activations while preserving gradient propagation through the retained graph.
+> Activation checkpointing reduces memory use by recomputing intermediate activations while preserving gradient propagation through the retained graph.
 
 - **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
 
 #### Stability
 
-Training and halting recipes address state collapse, uncontrolled recurrent-state norms, and premature exit-gate collapse. State conditioning, readout design, and learned stopping affect how useful additional iterations become.
+> Training and halting recipes address state collapse, uncontrolled recurrent-state norms, and premature exit-gate collapse. State conditioning, readout design, and learned stopping affect how useful additional iterations become.
 
 - **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
 - **[Dense Supervision Is Not Enough: The Readout Blind Spot in Looped Language Models](https://arxiv.org/abs/2606.24898)** — Rituraj Sharma, Tu Vu. (arXiv 2026)
@@ -284,15 +286,15 @@ Training and halting recipes address state collapse, uncontrolled recurrent-stat
 
 ## Inference
 
-Inference determines how much recurrent computation to execute, where to allocate it, and how to support it with attention, caching, and scheduling. Selecting an early prediction saves computation only when later updates are skipped.
+> Inference determines how much recurrent computation to execute, where to allocate it, and how to support it with attention, caching, and scheduling. Selecting an early prediction saves computation only when later updates are skipped.
 
 ### Budgets and Allocation
 
-A budget sets the available recurrent computation, while allocation determines how that computation is distributed across sequences or tokens.
+> A budget sets the available recurrent computation, while allocation determines how that computation is distributed across sequences or tokens.
 
 #### Specified budget
 
-A recurrence budget can be set globally or per request. LoopFormer conditions updates on progress and step size to adapt its trajectory to that budget; some fixed-loop studies instead train separate configurations for each loop count.
+> A recurrence budget can be set globally or per request. LoopFormer conditions updates on progress and step size to adapt its trajectory to that budget; some fixed-loop studies instead train separate configurations for each loop count.
 
 - **[LoopCoder-v2: Only Loop Once for Efficient Test-Time Computation Scaling](https://arxiv.org/abs/2606.18023)** — Jian Yang, Shawn Guo, Wei Zhang, Tianyu Zheng, Yaxin Du, Haau-Sing Li, Jiajun Wu, Yue Song, Yan Xing, Qingsong Cai, Zelong Huang, Chuan Hao, Ran Tao, Xianglong Liu, Wayne Xin Zhao, Mingjie Tang, Weifeng Lv, Ming Zhou, Bryan Dai. (arXiv 2026)
 - **[LoopFormer: Elastic-Depth Looped Transformers for Latent Reasoning via Shortcut Modulation](https://openreview.net/pdf?id=RzYXb5YWBs)** — Ahmadreza Jeddi, Marco Ciccone, Babak Taati. (ICLR 2026)
@@ -302,7 +304,7 @@ A recurrence budget can be set globally or per request. LoopFormer conditions up
 
 #### Adaptive allocation
 
-Computation can vary across whole sequences or individual tokens according to the input and intermediate states.
+> Computation can vary across whole sequences or individual tokens according to the input and intermediate states.
 
 - **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
 - **[Stabilizing Extrapolation in Looped Transformers via Learned Stochastic Stopping](https://openreview.net/forum?id=xExWu1Bhuw)** — Hsun-Yu Kuo, El Mahdi Chayti, Patrik Reizinger, Wieland Brendel, Martin Jaggi. (AdaptFM 2026)
@@ -313,11 +315,11 @@ Computation can vary across whole sequences or individual tokens according to th
 
 ### Stopping and Routing
 
-Learned controllers, routing policies, and post-hoc criteria determine whether further updates are executed and which states supply predictions.
+> Learned controllers, routing policies, and post-hoc criteria determine whether further updates are executed and which states supply predictions.
 
 #### Learned halting
 
-Learned controllers can accumulate token-wise halting scores, construct exit distributions, or make sequence-level stopping decisions. PALBERT and Ouro use Q-exit, selecting the earliest iteration reaching a cumulative-probability threshold. The Less is More entry refers to the TRM-Att configuration.
+> Learned controllers can accumulate token-wise halting scores, construct exit distributions, or make sequence-level stopping decisions. PALBERT and Ouro use Q-exit, selecting the earliest iteration reaching a cumulative-probability threshold. The Less is More entry refers to the TRM-Att configuration.
 
 - **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
 - **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
@@ -329,14 +331,14 @@ Learned controllers can accumulate token-wise halting scores, construct exit dis
 
 #### Routing
 
-MoR token-choice policies assign depth in advance, while expert-choice policies select tokens for further updates at successive recurrences. ITT adaptively routes tokens for additional computation within designated layers.
+> MoR token-choice policies assign depth in advance, while expert-choice policies select tokens for further updates at successive recurrences. ITT adaptively routes tokens for additional computation within designated layers.
 
 - **[Inner Thinking Transformer: Leveraging Dynamic Depth Scaling to Foster Adaptive Internal Thinking](https://aclanthology.org/2025.acl-long.1369/)** — Yilong Chen, Junyuan Shang, Zhenyu Zhang, Yanxi Xie, Jiawei Sheng, Tingwen Liu, Shuohuan Wang, Yu Sun, Hua Wu, Haifeng Wang. (ACL 2025)
 - **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://proceedings.neurips.cc/paper_files/paper/2025/file/8b08bbf8b420faa6eeb4020720582ec7-Paper-Conference.pdf)** — Sangmin Bae, Yujin Kim, Reza Bayat, Sungnyun Kim, Jiyoun Ha, Tal Schuster, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Aaron Courville, Se-Young Yun. (NeurIPS 2025)
 
 #### Post-hoc stopping
 
-Changes between consecutive predictions or states provide stopping signals, including KL divergence between output distributions and distances between hidden states. PABEE uses prediction patience; its ALBERT configuration combines this rule with shared Transformer layers.
+> Changes between consecutive predictions or states provide stopping signals, including KL divergence between output distributions and distances between hidden states. PABEE uses prediction patience; its ALBERT configuration combines this rule with shared Transformer layers.
 
 - **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
 - **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
@@ -344,18 +346,18 @@ Changes between consecutive predictions or states provide stopping signals, incl
 
 #### Output selection and halting diagnostics
 
-Confidence-based selection can choose a prediction after executing a bounded trajectory. Oracle selection across iterations helps diagnose the potential of intermediate outputs, while a learned policy can select outputs during execution. Computation savings require skipping subsequent updates.
+> Confidence-based selection can choose a prediction after executing a bounded trajectory. Oracle selection across iterations helps diagnose the potential of intermediate outputs, while a learned policy can select outputs during execution. Computation savings require skipping subsequent updates.
 
 - **[Stabilizing Extrapolation in Looped Transformers via Learned Stochastic Stopping](https://openreview.net/forum?id=xExWu1Bhuw)** — Hsun-Yu Kuo, El Mahdi Chayti, Patrik Reizinger, Wieland Brendel, Martin Jaggi. (AdaptFM 2026)
 - **[Looped Transformers for Length Generalization](https://proceedings.iclr.cc/paper_files/paper/2025/file/25cc3adf8c85f7c70989cb8a97a691a7-Paper-Conference.pdf)** — Ying Fan, Yilun Du, Kannan Ramchandran, Kangwook Lee. (ICLR 2025)
 
 ### Attention Context and Execution
 
-Tokens that stop updating may still provide attention context, so cache policies and execution schedules must support heterogeneous recurrence depths.
+> Tokens that stop updating may still provide attention context, so cache policies and execution schedules must support heterogeneous recurrence depths.
 
 #### KV organization
 
-Attention can retain depth-specific key–value states or reuse cached states across recurrences; shared weights alone do not imply shared KVs.
+> Attention can retain depth-specific key–value states or reuse cached states across recurrences; shared weights alone do not imply shared KVs.
 
 - **[Memory-Efficient Looped Transformer: Decoupling Compute from Memory in Looped Language Models](https://arxiv.org/pdf/2605.07721)** — Victor Conchello Vendrell, Arnau Padres Masdemont, Niccolò Grillo, Jordi Ros-Giralt, Arash Behboodi, Fabio Valerio Massoli. (arXiv 2026)
 - **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
@@ -364,14 +366,14 @@ Attention can retain depth-specific key–value states or reuse cached states ac
 
 #### KV transformations
 
-Gated aggregation and compressed representations reduce cache storage while changing how recurrent information is supplied to attention.
+> Gated aggregation and compressed representations reduce cache storage while changing how recurrent information is supplied to attention.
 
 - **[Looped Latent Attention: Cross-Loop KV Compression for Looped Transformers](https://arxiv.org/pdf/2607.15456)** — James O' Neill, Fergal Reid. (arXiv 2026)
 - **[Memory-Efficient Looped Transformer: Decoupling Compute from Memory in Looped Language Models](https://arxiv.org/pdf/2605.07721)** — Victor Conchello Vendrell, Arnau Padres Masdemont, Niccolò Grillo, Jordi Ros-Giralt, Arash Behboodi, Fabio Valerio Massoli. (arXiv 2026)
 
 #### Depth-wise batching
 
-Ready applications of the shared core can be batched together even when their recurrence indices differ.
+> Ready applications of the shared core can be batched together even when their recurrence indices differ.
 
 - **[Depth-adaptive Inference of Looped Language Models via Continuous Depth Batching](https://arxiv.org/pdf/2608.09444)** — Kristian Schwethelm, Daniel Rueckert, Georgios Kaissis. (arXiv 2026)
 - **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://proceedings.neurips.cc/paper_files/paper/2025/file/8b08bbf8b420faa6eeb4020720582ec7-Paper-Conference.pdf)** — Sangmin Bae, Yujin Kim, Reza Bayat, Sungnyun Kim, Jiyoun Ha, Tal Schuster, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Aaron Courville, Se-Young Yun. (NeurIPS 2025)
@@ -379,13 +381,13 @@ Ready applications of the shared core can be batched together even when their re
 
 #### Verified drafting
 
-Shallow recurrent states propose tokens that deeper computation verifies. Speculative decoding uses verification and correction to preserve the decoding distribution of the full-depth target model.
+> Shallow recurrent states propose tokens that deeper computation verifies. Speculative decoding uses verification and correction to preserve the decoding distribution of the full-depth target model.
 
 - **[LoopSpec: Pipelined Self-Speculative Decoding for Looped Transformers](https://arxiv.org/pdf/2609.17184)** — SangLyul Cho, Langqing Cui, Sehoon Kim, Dongsu Han, Insu Han. (arXiv 2026)
 
 #### Parallel execution across loops
 
-Modified recurrent dependencies allow loop stages to overlap, increasing execution parallelism. This changes how information passes between iterations and complements scheduling methods that batch ready updates.
+> Modified recurrent dependencies allow loop stages to overlap, increasing execution parallelism. This changes how information passes between iterations and complements scheduling methods that batch ready updates.
 
 - **[LoopCoder-v2: Only Loop Once for Efficient Test-Time Computation Scaling](https://arxiv.org/abs/2606.18023)** — Jian Yang, Shawn Guo, Wei Zhang, Tianyu Zheng, Yaxin Du, Haau-Sing Li, Jiajun Wu, Yue Song, Yan Xing, Qingsong Cai, Zelong Huang, Chuan Hao, Ran Tao, Xianglong Liu, Wayne Xin Zhao, Mingjie Tang, Weifeng Lv, Ming Zhou, Bryan Dai. (arXiv 2026)
 - **[Parallel Loop Transformer for Efficient Test-Time Computation Scaling](https://arxiv.org/abs/2510.24824)** — Bohong Wu, Mengzhao Chen, Xiang Luo, Shen Yan, Qifan Yu, Fan Xia, Tianqi Zhang, Hongrui Zhan, Zheng Zhong, Xun Zhou, Siyuan Qiao, Xingyan Bin. (arXiv 2025)
