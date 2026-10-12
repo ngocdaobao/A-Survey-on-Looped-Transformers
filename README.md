@@ -1,429 +1,391 @@
 <div align="center">
 
-# Looped Transformers: A Survey of Recurrent-Depth Architectures for Language Models
+# Looped Transformers: Architectures, Training, Inference, and Evidence
 
 </div>
 
-## Contents
-- [Taxonomy](#taxonomy)
-- [A. Loop Topology](#a-loop-topology)
-  - [A1. Whole Stack](#a1-whole-stack)
-  - [A2. Sandwich](#a2-sandwich-prelude--shared-core--coda)
-  - [A3. Layer-Local / Immediate](#a3-layer-local--immediate)
-  - [A4. Cyclic Patterns](#a4-cyclic-patterns-over-m-unique-blocks)
-  - [A5. Component-Level](#a5-component-level)
-  - [A6. Hierarchical / Two-Timescale](#a6-hierarchical--two-timescale)
-  - [A7. Parallel / Pipelined](#a7-parallel--pipelined-across-loops)
-- [B. Loop-Count Policy](#b-loop-count-policy)
-- [C. Inter-Iteration State](#c-inter-iteration-state)
-- [D. Sharing Strictness](#d-sharing-strictness)
-- [E. Training Recipe](#e-training-recipe)
-- [F. Memory / KV Strategy](#f-memory--kv-strategy)
+Looped Transformers repeatedly apply shared layers or blocks to refine hidden representations, increasing computational depth while reusing parameters. This creates opportunities for parameter efficiency and flexible inference budgets, with benefits that depend on how recurrence is trained and executed. This collection covers recurrent-depth models for language modeling and NLP, organized around their architecture, training methods, and inference strategies.
 
----
-# Taxonomy
+## Contents
+
+- [Taxonomy](#taxonomy)
+- [Architecture](#architecture)
+  - [Recurrence Structure](#recurrence-structure)
+  - [Parameter Sharing](#parameter-sharing)
+  - [State and Information Flow](#state-and-information-flow)
+- [Training](#training)
+  - [Parameter Initialization and Adaptation](#parameter-initialization-and-adaptation)
+  - [Training-Depth Exposure](#training-depth-exposure)
+  - [Supervision and Objectives](#supervision-and-objectives)
+  - [Gradients and Stability](#gradients-and-stability)
+- [Inference](#inference)
+  - [Budgets and Allocation](#budgets-and-allocation)
+  - [Stopping and Routing](#stopping-and-routing)
+  - [Attention Context and Execution](#attention-context-and-execution)
+
+## Taxonomy
+
+The taxonomy organizes looped Transformers along three complementary design axes: **Architecture**, **Training**, and **Inference**. A work may appear in multiple branches when it addresses several design choices. The lists focus on models and methods that reuse Transformer computation across network depth.
+
 <p align="center">
-  <a href="assets/taxonomy.png"><img src="assets/taxonomy.png" width="100%" alt="Taxonomy of Looped Transformers in large language models"></a>
+  <a href="assets/taxonomy.pdf"><img src="assets/taxonomy.png" width="100%" alt="Taxonomy of Looped Transformers: architecture, training, and inference"></a>
 </p>
 
-# A. Loop Topology
+## Architecture
 
-## A1. Whole Stack
+Architecture specifies the repeated computation, its parameter-sharing scheme, and the state passed between iterations. Together, these choices determine what each recurrent update can do.
 
-The whole transformer stack/shared block is repeatedly applied.
+### Recurrence Structure
 
-- **[Universal Transformers](https://arxiv.org/abs/1807.03819)** — Mostafa Dehghani, Stephan Gouws, Oriol Vinyals, Jakob Uszkoreit, Łukasz Kaiser. *ICLR 2019.*
-- **[ALBERT: A Lite BERT for Self-Supervised Learning of Language Representations](https://arxiv.org/abs/1909.11942)** — Zhenzhong Lan, Mingda Chen, Sebastian Goodman, Kevin Gimpel, Piyush Sharma, Radu Soricut. *ICLR 2020.*
-- **[End-to-End Algorithm Synthesis with Recurrent Networks: Logical Extrapolation without Overthinking](https://arxiv.org/abs/2202.05826)** — Arpit Bansal et al. *arXiv, 2022.*
-- **[Sparse Universal Transformer](https://aclanthology.org/2023.emnlp-main.12/)** — Shawn Tan, Yikang Shen, Zhenfang Chen, Aaron Courville, Chuang Gan. *EMNLP 2023.*
-- **[Looped Transformers Are Better at Learning Learning Algorithms](https://arxiv.org/abs/2311.12424)** — Liu Yang, Kangwook Lee, Robert D. Nowak, Dimitris Papailiopoulos. *ICLR 2024.*
-- **[Loop Neural Networks for Parameter Sharing](https://arxiv.org/abs/2409.14199)** — Kei-Sing Ng, Qingchen Wang. *arXiv, 2024.*
-- **[PonderLM: Pretraining Language Models to Ponder in Continuous Space](https://arxiv.org/abs/2505.20674)** — Boyi Zeng et al. *ICLR 2026.*
-- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741)** — Rui-Jie Zhu et al. *arXiv, 2025.*
-- **[LoopFormer: Elastic-Depth Looped Transformers for Latent Reasoning via Shortcut Modulation](https://arxiv.org/abs/2602.11451)** — Ahmadreza Jeddi, Marco Ciccone, Babak Taati. *arXiv, 2026.*
-- **[AdaPonderLM: Gated Pondering Language Models with Token-Wise Adaptive Depth](https://arxiv.org/abs/2603.01914)** — Shixiang Song et al. *arXiv, 2026.*
-- **[Memory-Efficient Looped Transformer: Decoupling Compute from Memory in Looped Language Models](https://arxiv.org/abs/2605.07721)** — Victor Conchello Vendrell et al. *arXiv, 2026.*
-- **[Fixed-Point Reasoners: Stable and Adaptive Deep Looped Transformers](https://arxiv.org/abs/2606.18206)** — Sajad Movahedi et al. *arXiv, 2026.*
-- **[Nanbeige4.2-3B: Unlocking Agentic Capabilities in a Compact Model](https://arxiv.org/abs/2607.22083)** — Nanbeige Lab et al. *arXiv, 2026.*
-- **[CHASE: Cache-Hole-Adapted Skip Exit for Looped State-Space Language Models](https://arxiv.org/abs/2607.10110)** — Zhenxuan Yu, Takeshi Kojima, Yutaka Matsuo, Yusuke Iwasawa. *arXiv, 2026.*
+The repeated unit, its placement, and its execution order define the recurrence structure; interacting modules may also operate at different timescales.
 
-## A2. Sandwich: Prelude → Shared Core → Coda
+#### Repeated unit
 
-Only the middle recurrent core is shared/looped.
+Each recurrence reapplies either a single Transformer layer or a block of distinct layers, so equal loop counts can represent different effective depths.
 
-- **[Subformer: Exploring Weight Sharing for Parameter Efficiency in Generative Transformers](https://aclanthology.org/2021.findings-emnlp.344/)** — Machel Reid, Edison Marrese-Taylor, Yutaka Matsuo. *Findings of EMNLP 2021.*
-- **[AlgoFormer: An Efficient Transformer Framework with Algorithmic Structures](https://arxiv.org/abs/2402.13572)** — Yihang Gao et al. *arXiv, 2024.*
-- **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/hash/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Abstract-Conference.html)** — Jonas Geiping et al. *NeurIPS 2025.*
-- **[Encode, Think, Decode: Scaling Test-Time Reasoning with Recursive Latent Thoughts](https://arxiv.org/abs/2510.07358)** — Yeskendir Koishekenov, Aldo Lipani, Nicola Cancedda. *arXiv, 2025.*
-- **[Teaching Pretrained Language Models to Think Deeper with Retrofitted Recurrence](https://arxiv.org/abs/2511.07384)** — Sean McLeish et al. *arXiv, 2025.*
-- **[Parcae: Scaling Laws for Stable Looped Language Models](https://arxiv.org/abs/2604.12946)** — Hayden Prairie et al. *arXiv, 2026.*
-- **[How Much Is One Recurrence Worth? Iso-Depth Scaling Laws for Looped Language Models](https://arxiv.org/abs/2604.21106)** — Kristian Schwethelm, Daniel Rueckert, Georgios Kaissis. *arXiv, 2026.*
-- **[Hyperloop Transformers](https://arxiv.org/abs/2604.21254)** — Abbas Zeitoun, Lucas Torroba-Hennigen, Yoon Kim. *arXiv, 2026.*
-- **[Sparse Layers Are Critical to Scaling Looped Language Models](https://arxiv.org/abs/2605.09165)** — Ryan Lee, Jacob Biloki, Edward J. Hu, Jonathan May. *arXiv, 2026.*
-- **[LoopUS: Recasting Pretrained LLMs into Looped Latent Refinement Models](https://arxiv.org/abs/2605.11011)** — Taekhyun Park, Yongjae Lee, Dohee Kim, Hyerim Bae. *arXiv, 2026.*
-- **[Training-Free Looped Transformers](https://arxiv.org/abs/2605.23872)** — Lizhang Chen, Jonathan Li, Chen Liang, Ni Lao, Qiang Liu. *arXiv, 2026.*
-- **[LoopMoE: Unifying Iterative Computation with Mixture-of-Experts for Language Modeling](https://arxiv.org/abs/2606.04438)** — Wenkai Chen et al. *arXiv, 2026.*
-- **[SMELT: Scaling Laws for Compute-Matched MoE Looped Transformers](https://arxiv.org/abs/2609.01343)** — Shaowen Wang et al. *arXiv, 2026.*
-- **[RecurTrace: Adaptive Latent Reasoning with Loop-Time Memory](https://arxiv.org/abs/2609.03379)** — Yuxiang Wang et al. *arXiv, 2026.*
+- **[Inner Thinking Transformer: Leveraging Dynamic Depth Scaling to Foster Adaptive Internal Thinking](https://aclanthology.org/2025.acl-long.1369/)** — Yilong Chen, Junyuan Shang, Zhenyu Zhang, Yanxi Xie, Jiawei Sheng, Tingwen Liu, Shuohuan Wang, Yu Sun, Hua Wu, Haifeng Wang. (ACL 2025)
+- **[Relaxed Recursive Transformers: Effective Parameter Sharing with Layer-wise LoRA](https://proceedings.iclr.cc/paper_files/paper/2025/file/54d6a55225cebbdc16fbb0e45c5bdf2b-Paper-Conference.pdf)** — Sangmin Bae, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Seungyeon Kim, Tal Schuster. (ICLR 2025)
+- **[RingFormer: Rethinking Recurrent Transformer with Adaptive Level Signals](https://aclanthology.org/2025.findings-emnlp.1182/)** — Jaemu Heo, Eldor Fozilov, Hyunmin Song, Taehwan Kim. (Findings of EMNLP 2025)
+- **[MoEUT: Mixture-of-Experts Universal Transformers](https://proceedings.neurips.cc/paper_files/paper/2024/file/321387ba926b8e58d3591c0aeb52ffc2-Paper-Conference.pdf)** — Róbert Csordás, Kazuki Irie, Jürgen Schmidhuber, Christopher Potts, Christopher D. Manning. (NeurIPS 2024)
+- **[Looped Transformers as Programmable Computers](https://proceedings.mlr.press/v202/giannou23a.html)** — Angeliki Giannou, Shashank Rajput, Jy-Yong Sohn, Kangwook Lee, Jason D. Lee, Dimitris Papailiopoulos. (ICML 2023)
+- **[Recurrent multiple shared layers in Depth for Neural Machine Translation](https://arxiv.org/abs/2108.10417)** — GuoLiang Li, Yiyang Li. (arXiv 2021)
+- **[ALBERT: A Lite BERT for Self-supervised Learning of Language Representations](https://openreview.net/pdf?id=H1eA7AEtvS)** — Zhenzhong Lan, Mingda Chen, Sebastian Goodman, Kevin Gimpel, Piyush Sharma, Radu Soricut. (ICLR 2020)
+- **[Recurrent stacking of layers for compact neural machine translation models](https://ojs.aaai.org/index.php/AAAI/article/view/4590)** — Raj Dabre, Atsushi Fujita. (AAAI 2019)
+- **[Universal Transformers](https://openreview.net/pdf?id=HyzdRiR9Y7)** — Mostafa Dehghani, Stephan Gouws, Oriol Vinyals, Jakob Uszkoreit, Lukasz Kaiser. (ICLR 2019)
 
-## A3. Layer-Local / Immediate
+#### Placement and order
 
-Each layer or small layer group is immediately repeated.
+Recurrence can span most of the network or sit within an internal core; shared layers can follow sequential, cyclic, or reversed-cyclic reuse orders. Parallel loop architectures modify cross-loop dependencies to allow overlapping computation.
 
-- **[MobileLLM: Optimizing Sub-Billion Parameter Language Models for On-Device Use Cases](https://proceedings.mlr.press/v235/liu24ce.html)** — Zechun Liu et al. *ICML 2024.*
-- **[MoEUT: Mixture-of-Experts Universal Transformers](https://proceedings.neurips.cc/paper_files/paper/2024/hash/321387ba926b8e58d3591c0aeb52ffc2-Abstract-Conference.html)** — Róbert Csordás, Kazuki Irie, Jürgen Schmidhuber, Christopher Potts, Christopher D. Manning. *NeurIPS 2024.*
-- **[Inner Thinking Transformer: Leveraging Dynamic Depth Scaling to Foster Adaptive Internal Thinking](https://aclanthology.org/2025.acl-long.1369/)** — Yilong Chen et al. *ACL 2025.*
-- **[Loop the Loopies!](https://arxiv.org/abs/2607.16051)** — Zitian Gao et al. *arXiv, 2026.*
+- **[LoopCoder-v2: Only Loop Once for Efficient Test-Time Computation Scaling](https://arxiv.org/abs/2606.18023)** — Jian Yang, Shawn Guo, Wei Zhang, Tianyu Zheng, Yaxin Du, Haau-Sing Li, Jiajun Wu, Yue Song, Yan Xing, Qingsong Cai, Zelong Huang, Chuan Hao, Ran Tao, Xianglong Liu, Wayne Xin Zhao, Mingjie Tang, Weifeng Lv, Ming Zhou, Bryan Dai. (arXiv 2026)
+- **[Parcae: Scaling Laws For Stable Looped Language Models](https://arxiv.org/abs/2604.12946)** — Hayden Prairie, Zachary Novack, Taylor Berg-Kirkpatrick, Daniel Y. Fu. (arXiv 2026)
+- **[Encode, Think, Decode: Scaling test-time reasoning with recursive latent thoughts](https://arxiv.org/abs/2510.07358)** — Yeskendir Koishekenov, Aldo Lipani, Nicola Cancedda. (arXiv 2025)
+- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://proceedings.neurips.cc/paper_files/paper/2025/file/8b08bbf8b420faa6eeb4020720582ec7-Paper-Conference.pdf)** — Sangmin Bae, Yujin Kim, Reza Bayat, Sungnyun Kim, Jiyoun Ha, Tal Schuster, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Aaron Courville, Se-Young Yun. (NeurIPS 2025)
+- **[Parallel Loop Transformer for Efficient Test-Time Computation Scaling](https://arxiv.org/abs/2510.24824)** — Bohong Wu, Mengzhao Chen, Xiang Luo, Shen Yan, Qifan Yu, Fan Xia, Tianqi Zhang, Hongrui Zhan, Zheng Zhong, Xun Zhou, Siyuan Qiao, Xingyan Bin. (arXiv 2025)
+- **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
+- **[Lessons on Parameter Sharing across Layers in Transformers](https://aclanthology.org/2023.sustainlp-1.5.pdf)** — Sho Takase, Shun Kiyono. (SustaiNLP 2023)
+- **[Subformer: Exploring Weight Sharing for Parameter Efficiency in Generative Transformers](https://aclanthology.org/2021.findings-emnlp.344.pdf)** — Machel Reid, Edison Marrese-Taylor, Yutaka Matsuo. (Findings of EMNLP 2021)
+- **[ALBERT: A Lite BERT for Self-supervised Learning of Language Representations](https://openreview.net/pdf?id=H1eA7AEtvS)** — Zhenzhong Lan, Mingda Chen, Sebastian Goodman, Kevin Gimpel, Piyush Sharma, Radu Soricut. (ICLR 2020)
 
-## A4. Cyclic Patterns over M Unique Blocks
+#### Coupled recurrence
 
-A set of unique blocks is reused following sequence/cycle patterns.
+Hierarchical Reasoning Model (HRM) and HRM-Text couple low-level and high-level modules with separate states, performing multiple low-level updates for each high-level update.
 
-- **[Lessons on Parameter Sharing across Layers in Transformers](https://aclanthology.org/2023.sustainlp-1.5/)** — Sho Takase, Shun Kiyono. *SustaiNLP @ ACL 2023.*
-- **[Relaxed Recursive Transformers: Effective Parameter Sharing with Layer-Wise LoRA](https://arxiv.org/abs/2410.20672)** — Sangmin Bae, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Seungyeon Kim, Tal Schuster. *ICLR 2025.*
-- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://arxiv.org/abs/2507.10524)** — Sangmin Bae et al. *NeurIPS 2025.*
+- **[Hierarchical Reasoning Model](https://arxiv.org/abs/2506.21734)** — Guan Wang, Jin Li, Yuhao Sun, Xing Chen, Changling Liu, Yue Wu, Meng Lu, Sen Song, Yasin Abbasi Yadkori. (arXiv 2026)
+- **[HRM-Text: Efficient Pretraining Beyond Scaling](https://arxiv.org/pdf/2605.20613)** — Guan Wang, Changling Liu, Chenyu Wang, Cai Zhou, Yuhao Sun, Yifei Wu, Shuai Zhen, Luca Scimeca, Yasin Abbasi Yadkori. (arXiv 2026)
 
-## A5. Component-Level
+### Parameter Sharing
 
-Only a selected transformer component is recurrent.
+Sharing is characterized by the components that reuse parameters and any additions specific to individual iterations or auxiliary controllers.
 
-- **[Allocating Recurrent Compute in Looped Language Models](https://arxiv.org/abs/2608.18230)** — Ruhai Lin et al. *arXiv, 2026.*  
-  - Introduces the **MixerLoop** component-level design used in the survey taxonomy.
+#### Sharing scope
 
-## A6. Hierarchical / Two-Timescale
+Attention parameters, feed-forward parameters, or both can be shared across recurrent applications.
 
-Fast and slow recurrent modules operate at different timescales.
+- **[MoEUT: Mixture-of-Experts Universal Transformers](https://proceedings.neurips.cc/paper_files/paper/2024/file/321387ba926b8e58d3591c0aeb52ffc2-Paper-Conference.pdf)** — Róbert Csordás, Kazuki Irie, Jürgen Schmidhuber, Christopher Potts, Christopher D. Manning. (NeurIPS 2024)
+- **[Subformer: Exploring Weight Sharing for Parameter Efficiency in Generative Transformers](https://aclanthology.org/2021.findings-emnlp.344.pdf)** — Machel Reid, Edison Marrese-Taylor, Yutaka Matsuo. (Findings of EMNLP 2021)
+- **[ALBERT: A Lite BERT for Self-supervised Learning of Language Representations](https://openreview.net/pdf?id=H1eA7AEtvS)** — Zhenzhong Lan, Mingda Chen, Sebastian Goodman, Kevin Gimpel, Piyush Sharma, Radu Soricut. (ICLR 2020)
+- **[Universal Transformers](https://openreview.net/pdf?id=HyzdRiR9Y7)** — Mostafa Dehghani, Stephan Gouws, Oriol Vinyals, Jakob Uszkoreit, Lukasz Kaiser. (ICLR 2019)
 
-- **[Hierarchical Reasoning Model](https://arxiv.org/abs/2506.21734)** — Guan Wang et al. *arXiv, 2025.*
-- **[Less Is More: Recursive Reasoning with Tiny Networks](https://arxiv.org/abs/2510.04871)** — Alexia Jolicoeur-Martineau. *arXiv, 2025.*
-- **[Universal Reasoning Model](https://arxiv.org/abs/2512.14693)** — Zitian Gao et al. *arXiv, 2025.*
-- **[Hierarchical vs. Flat Iteration in Shared-Weight Transformers](https://arxiv.org/abs/2604.14442)** — Sang-Il Han. *arXiv, 2026.*
-- **[HRM-Text: Efficient Pretraining Beyond Scaling](https://arxiv.org/abs/2605.20613)** — Guan Wang et al. *arXiv, 2026.*
+#### Iteration-specific parameters
 
-## A7. Parallel / Pipelined across Loops
+A shared core can be augmented with depth-specific low-rank corrections, learned iteration signals, hyper-connections, or recursion-specific routing parameters.
 
-Loop computation is parallelized or pipelined.
+- **[Hyperloop Transformers](https://arxiv.org/abs/2604.21254)** — Abbas Zeitoun, Lucas Torroba-Hennigen, Yoon Kim. (arXiv 2026)
+- **[MeSH: Memory-as-State-Highways for Recursive Transformers](https://proceedings.iclr.cc/paper_files/paper/2026/file/ef12378d988ef4dac37b200d1906056a-Paper-Conference.pdf)** — Chengting Yu, Xiaobo Shu, Yadao Wang, Yizhen Zhang, Haoyi Wu, Jiaang Li, Rujiao Long, Ziheng Chen, Yuchi Xu, wenbo su, Bo Zheng. (ICLR 2026)
+- **[Inner Thinking Transformer: Leveraging Dynamic Depth Scaling to Foster Adaptive Internal Thinking](https://aclanthology.org/2025.acl-long.1369/)** — Yilong Chen, Junyuan Shang, Zhenyu Zhang, Yanxi Xie, Jiawei Sheng, Tingwen Liu, Shuohuan Wang, Yu Sun, Hua Wu, Haifeng Wang. (ACL 2025)
+- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://proceedings.neurips.cc/paper_files/paper/2025/file/8b08bbf8b420faa6eeb4020720582ec7-Paper-Conference.pdf)** — Sangmin Bae, Yujin Kim, Reza Bayat, Sungnyun Kim, Jiyoun Ha, Tal Schuster, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Aaron Courville, Se-Young Yun. (NeurIPS 2025)
+- **[Relaxed Recursive Transformers: Effective Parameter Sharing with Layer-wise LoRA](https://proceedings.iclr.cc/paper_files/paper/2025/file/54d6a55225cebbdc16fbb0e45c5bdf2b-Paper-Conference.pdf)** — Sangmin Bae, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Seungyeon Kim, Tal Schuster. (ICLR 2025)
+- **[RingFormer: Rethinking Recurrent Transformer with Adaptive Level Signals](https://aclanthology.org/2025.findings-emnlp.1182/)** — Jaemu Heo, Eldor Fozilov, Hyunmin Song, Taehwan Kim. (Findings of EMNLP 2025)
 
-- **[Parallel Loop Transformer for Efficient Test-Time Computation Scaling](https://arxiv.org/abs/2510.24824)** — Bohong Wu et al. *arXiv, 2025.*
-- **[LoopCoder-v2: Only Loop Once for Efficient Test-Time Computation Scaling](https://arxiv.org/abs/2606.18023)** — Jian Yang et al. *arXiv, 2026.*
-- **[Bridging the Gap Between Latent and Explicit Reasoning with Looped Transformers](https://arxiv.org/abs/2606.31779)** — Ying Fan, Anej Svete, Kangwook Lee. *arXiv, 2026.*
+#### Iteration conditioning and expert selection
 
----
+Timestep or level signals, progress and step-size conditioning, and changing expert selections allow a shared core to perform different computations at successive depths.
 
-# B. Loop-Count Policy
+- **[LoopFormer: Elastic-Depth Looped Transformers for Latent Reasoning via Shortcut Modulation](https://openreview.net/pdf?id=RzYXb5YWBs)** — Ahmadreza Jeddi, Marco Ciccone, Babak Taati. (ICLR 2026)
+- **[On Expressive Power of Looped Transformers: Theoretical Analysis and Enhancement via Timestep Encoding](https://proceedings.mlr.press/v267/xu25x.html)** — Kevin Xu, Issei Sato. (ICML 2025)
+- **[RingFormer: Rethinking Recurrent Transformer with Adaptive Level Signals](https://aclanthology.org/2025.findings-emnlp.1182/)** — Jaemu Heo, Eldor Fozilov, Hyunmin Song, Taehwan Kim. (Findings of EMNLP 2025)
+- **[MoEUT: Mixture-of-Experts Universal Transformers](https://proceedings.neurips.cc/paper_files/paper/2024/file/321387ba926b8e58d3591c0aeb52ffc2-Paper-Conference.pdf)** — Róbert Csordás, Kazuki Irie, Jürgen Schmidhuber, Christopher Potts, Christopher D. Manning. (NeurIPS 2024)
+- **[Sparse Universal Transformer](https://aclanthology.org/2023.emnlp-main.12/)** — Shawn Tan, Yikang Shen, Zhenfang Chen, Aaron Courville, Chuang Gan. (EMNLP 2023)
+- **[Universal Transformers](https://openreview.net/pdf?id=HyzdRiR9Y7)** — Mostafa Dehghani, Stephan Gouws, Oriol Vinyals, Jakob Uszkoreit, Lukasz Kaiser. (ICLR 2019)
 
-## B1. Fixed \(T\)
+### State and Information Flow
 
-The model uses a fixed number of recurrent passes.
+The recurrent transition depends on how states are initialized, how input remains available, and what information is carried between updates.
 
-- **[ALBERT](https://arxiv.org/abs/1909.11942)** — Zhenzhong Lan et al. *ICLR 2020.*
-- **[MobileLLM](https://proceedings.mlr.press/v235/liu24ce.html)** — Zechun Liu et al. *ICML 2024.*
-- **[PonderLM](https://arxiv.org/abs/2505.20674)** — Boyi Zeng et al. *ICLR 2026.*
-- **[Parallel Loop Transformer](https://arxiv.org/abs/2510.24824)** — Bohong Wu et al. *arXiv, 2025.*
-- **[Loop the Loopies!](https://arxiv.org/abs/2607.16051)** — Zitian Gao et al. *arXiv, 2026.*
-- **[Nanbeige4.2-3B](https://arxiv.org/abs/2607.22083)** — Nanbeige Lab et al. *arXiv, 2026.*
-- **[LoopCoder-v2](https://arxiv.org/abs/2606.18023)** — Jian Yang et al. *arXiv, 2026.*
-- **[SMELT](https://arxiv.org/abs/2609.01343)** — Shaowen Wang et al. *arXiv, 2026.*
+#### Input access
 
-## B2. Sampled at Train, Free at Test
+Input representations can initialize the recurrent state once or remain available through persistent conditioning at every update.
 
-Loop count varies during training and can be changed at inference.
+- **[Parcae: Scaling Laws For Stable Looped Language Models](https://arxiv.org/abs/2604.12946)** — Hayden Prairie, Zachary Novack, Taylor Berg-Kirkpatrick, Daniel Y. Fu. (arXiv 2026)
+- **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
+- **[Looped Transformers are Better at Learning Learning Algorithms](https://proceedings.iclr.cc/paper_files/paper/2024/file/b8402301e7f06bdc97a31bfaa653dc32-Paper-Conference.pdf)** — Liu Yang, Kangwook Lee, Robert Nowak, Dimitris Papailiopoulos. (ICLR 2024)
+- **[ALBERT: A Lite BERT for Self-supervised Learning of Language Representations](https://openreview.net/pdf?id=H1eA7AEtvS)** — Zhenzhong Lan, Mingda Chen, Sebastian Goodman, Kevin Gimpel, Piyush Sharma, Radu Soricut. (ICLR 2020)
 
-- **[End-to-End Algorithm Synthesis with Recurrent Networks](https://arxiv.org/abs/2202.05826)** — Arpit Bansal et al. *arXiv, 2022.*
-- **[Looped Transformers Are Better at Learning Learning Algorithms](https://arxiv.org/abs/2311.12424)** — Liu Yang et al. *ICLR 2024.*
-- **[Scaling up Test-Time Compute with Latent Reasoning](https://proceedings.neurips.cc/paper_files/paper/2025/hash/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Abstract-Conference.html)** — Jonas Geiping et al. *NeurIPS 2025.*
-- **[Teaching Pretrained Language Models to Think Deeper with Retrofitted Recurrence](https://arxiv.org/abs/2511.07384)** — Sean McLeish et al. *arXiv, 2025.*
-- **[LoopFormer](https://arxiv.org/abs/2602.11451)** — Ahmadreza Jeddi et al. *arXiv, 2026.*
-- **[Parcae](https://arxiv.org/abs/2604.12946)** — Hayden Prairie et al. *arXiv, 2026.*
-- **[Stabilizing Recurrent Dynamics for Test-Time Scalable Latent Reasoning in Looped Language Models](https://arxiv.org/abs/2605.26733)** — Xiao-Wen Yang et al. *arXiv, 2026.*
-- **[Looped Diffusion Language Models](https://arxiv.org/abs/2605.26106)** — Sanghyun Lee et al. *arXiv, 2026.*
+#### Updates and feedback
 
-## B3. Supervised, Input-Dependent \(T(n)\)
+Gates, routing weights, and constrained state mixing control recurrent updates. DiscoLoop feeds probability-weighted token embeddings into the evolving hidden state, while PonderLM accumulates them in the input representation supplied to subsequent model calls.
 
-Loop count is supervised as a function of the input/problem size.
+- **[DiscoLoop: Looping Discrete Embeddings and Continuous Hidden States for Multi-hop Reasoning](https://arxiv.org/pdf/2607.00341)** — Hengyu Fu, Tianyu Guo, Zixuan Wang, Hanlin Zhu, Jason D. Lee, Jiantao Jiao, Stuart Russell, Song Mei. (arXiv 2026)
+- **[Parcae: Scaling Laws For Stable Looped Language Models](https://arxiv.org/abs/2604.12946)** — Hayden Prairie, Zachary Novack, Taylor Berg-Kirkpatrick, Daniel Y. Fu. (arXiv 2026)
+- **[PonderLM: Pretraining Language Models to Ponder in Continuous Space](https://proceedings.iclr.cc/paper_files/paper/2026/file/94572a66c6b0710c5263f15d8ef6b463-Paper-Conference.pdf)** — Boyi Zeng, Shixiang Song, Siyuan Huang, Yixuan Wang, He Li, Ziwei He, Xinbing Wang, Zhiyu li, Zhouhan Lin. (ICLR 2026)
+- **[Inner Thinking Transformer: Leveraging Dynamic Depth Scaling to Foster Adaptive Internal Thinking](https://aclanthology.org/2025.acl-long.1369/)** — Yilong Chen, Junyuan Shang, Zhenyu Zhang, Yanxi Xie, Jiawei Sheng, Tingwen Liu, Shuohuan Wang, Yu Sun, Hua Wu, Haifeng Wang. (ACL 2025)
+- **[Investigating Recurrent Transformers with Dynamic Halt](https://arxiv.org/pdf/2402.00976)** — Jishnu Ray Chowdhury, Cornelia Caragea. (arXiv 2025)
+- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://proceedings.neurips.cc/paper_files/paper/2025/file/8b08bbf8b420faa6eeb4020720582ec7-Paper-Conference.pdf)** — Sangmin Bae, Yujin Kim, Reza Bayat, Sungnyun Kim, Jiyoun Ha, Tal Schuster, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Aaron Courville, Se-Young Yun. (NeurIPS 2025)
 
-- **[Looped Transformers for Length Generalization](https://proceedings.iclr.cc/paper_files/paper/2025/hash/25cc3adf8c85f7c70989cb8a97a691a7-Abstract-Conference.html)** — Ying Fan, Yilun Du, Kannan Ramchandran, Kangwook Lee. *ICLR 2025.*
-- **[Universal Transformers for Circuit Computations: Perfect Length Generalization in Tiny Transformers](https://arxiv.org/abs/2608.31067)** — Takuya Ito, Ruchir Puri, Murray Campbell, Parikshit Ram. *arXiv, 2026.*
+#### State organization
 
-## B4. Learned Online Halting
+Recurrent state can use a memory buffer, parallel residual streams, or representations at multiple sequence resolutions to carry information between updates.
 
-The stopping decision is made while recurrence is running.
+- **[Hyperloop Transformers](https://arxiv.org/abs/2604.21254)** — Abbas Zeitoun, Lucas Torroba-Hennigen, Yoon Kim. (arXiv 2026)
+- **[MeSH: Memory-as-State-Highways for Recursive Transformers](https://proceedings.iclr.cc/paper_files/paper/2026/file/ef12378d988ef4dac37b200d1906056a-Paper-Conference.pdf)** — Chengting Yu, Xiaobo Shu, Yadao Wang, Yizhen Zhang, Haoyi Wu, Jiaang Li, Rujiao Long, Ziheng Chen, Yuchi Xu, wenbo su, Bo Zheng. (ICLR 2026)
+- **[SpiralFormer: Looped Transformers Can Learn Hierarchical Dependencies via Multi-Resolution Recursion](https://arxiv.org/pdf/2602.11698)** — Chengting Yu, Xiaobo Shu, Yadao Wang, Yizhen Zhang, Haoyi Wu, You Wu, Rujiao Long, Ziheng Chen, Yuchi Xu, Wenbo Su, Bo Zheng. (arXiv 2026)
 
-- **[Adaptive Computation Time for Recurrent Neural Networks](https://arxiv.org/abs/1603.08983)** — Alex Graves. *arXiv, 2016.*
-- **[Universal Transformers](https://arxiv.org/abs/1807.03819)** — Mostafa Dehghani et al. *ICLR 2019.*
-- **[PonderNet: Learning to Ponder](https://arxiv.org/abs/2107.05407)** — Andrea Banino, Jan Balaguer, Charles Blundell. *arXiv, 2021.*
-- **[Sparse Universal Transformer](https://aclanthology.org/2023.emnlp-main.12/)** — Shawn Tan et al. *EMNLP 2023.*
-- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741)** — Rui-Jie Zhu et al. *arXiv, 2025.*
-- **[AdaPonderLM](https://arxiv.org/abs/2603.01914)** — Shixiang Song et al. *arXiv, 2026.*
-- **[LoopUS](https://arxiv.org/abs/2605.11011)** — Taekhyun Park et al. *arXiv, 2026.*
-- **[CHASE: Cache-Hole-Adapted Skip Exit for Looped State-Space Language Models](https://arxiv.org/abs/2607.10110)** — Zhenxuan Yu et al. *arXiv, 2026.*
+## Training
 
-## B5. Learned Up-Front Routing
+Training determines how repeated computation becomes useful through initialization, depth exposure, supervision, and optimization. Forward depth, supervised iterations, and the gradient horizon are separate choices.
 
-Depth is allocated before recurrent computation begins.
+### Parameter Initialization and Adaptation
 
-- **[CoTFormer: A Chain of Thought Driven Architecture with Budget-Adaptive Computation Cost at Inference](https://proceedings.iclr.cc/paper_files/paper/2025/hash/1eaa5146756be028ad6fff1efcc8e6bd-Abstract-Conference.html)** — Amirkeivan Mohtashami, Matteo Pagliardini, Martin Jaggi. *ICLR 2025.*
-- **[Inner Thinking Transformer](https://aclanthology.org/2025.acl-long.1369/)** — Yilong Chen et al. *ACL 2025.*
-- **[Mixture-of-Recursions](https://arxiv.org/abs/2507.10524)** — Sangmin Bae et al. *NeurIPS 2025.*
-- **[Skip a Layer or Loop It? Test-Time Depth Adaptation of Pretrained LLMs](https://arxiv.org/abs/2507.07996)** — Ziyue Li, Yang Li, Tianyi Zhou. *arXiv, 2025.*
-- **[Think-at-Hard: Dynamic Looped Transformers for Improved Reasoning](https://arxiv.org/abs/2511.08577)** — Tianyu Fu et al. *arXiv, 2025.*
-- **[Skip a Layer or Loop It? Learning Program-of-Layers in LLMs](https://arxiv.org/abs/2606.06574)** — Ziyue Li, Yang Li, Tianyi Zhou. *arXiv, 2026.*
+Recurrent models can be trained from scratch or constructed from pretrained models, with different costs for pretraining, adaptation, and inference.
 
-## B6. Convergence Test / Training-Free Halting
+#### From scratch
 
-The model stops when hidden states or outputs satisfy a convergence criterion.
+Shared recurrent computation is learned from the beginning of model training.
 
-- **[Deep Equilibrium Models](https://arxiv.org/abs/1909.01377)** — Shaojie Bai, J. Zico Kolter, Vladlen Koltun. *NeurIPS 2019.*
-- **[Scaling up Test-Time Compute with Latent Reasoning](https://proceedings.neurips.cc/paper_files/paper/2025/hash/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Abstract-Conference.html)** — Jonas Geiping et al. *NeurIPS 2025.*
-- **[Two-Scale Latent Dynamics for Recurrent-Depth Transformers](https://arxiv.org/abs/2509.23314)** — Francesco Pappone, Donato Crisostomi, Emanuele Rodolà. *arXiv, 2025.*
-- **[Fixed-Point Reasoners](https://arxiv.org/abs/2606.18206)** — Sajad Movahedi et al. *arXiv, 2026.*
-- **[Per-Token Fixed-Point Convergence in Depth-Recurrent Transformers](https://arxiv.org/abs/2607.14427)** — Joe Logan. *arXiv, 2026.*
-- **[Think Shallow, Solve Deep: Controlling Recurrent Dynamics for Reliable Test-Time Depth](https://arxiv.org/abs/2608.18222)** — Ivan Viakhirev et al. *arXiv, 2026.*
+- **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
+- **[Parcae: Scaling Laws For Stable Looped Language Models](https://arxiv.org/abs/2604.12946)** — Hayden Prairie, Zachary Novack, Taylor Berg-Kirkpatrick, Daniel Y. Fu. (arXiv 2026)
+- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
+- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://proceedings.neurips.cc/paper_files/paper/2025/file/8b08bbf8b420faa6eeb4020720582ec7-Paper-Conference.pdf)** — Sangmin Bae, Yujin Kim, Reza Bayat, Sungnyun Kim, Jiyoun Ha, Tal Schuster, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Aaron Courville, Se-Young Yun. (NeurIPS 2025)
+- **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
 
-## B7. RL / Oracle-Supervised Stopping
+#### Retrofitting
 
-Stopping policies are trained with reinforcement learning or oracle supervision.
+Pretrained layers are converted into recurrent computation, with options for further training or reuse of frozen parameters.
 
-- **[Hierarchical Reasoning Model](https://arxiv.org/abs/2506.21734)** — Guan Wang et al. *arXiv, 2025.*
-- **[Stabilizing Extrapolation in Looped Transformers via Learned Stochastic Stopping](https://arxiv.org/abs/2606.29983)** — Hsun-Yu Kuo et al. *arXiv, 2026.*
-- **[RecurTrace: Adaptive Latent Reasoning with Loop-Time Memory](https://arxiv.org/abs/2609.03379)** — Yuxiang Wang et al. *arXiv, 2026.*
+- **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
+- **[Training-Free Looped Transformers](https://arxiv.org/pdf/2605.23872)** — Lizhang Chen, Jonathan Li, Chen Liang, Ni Lao, Qiang Liu. (arXiv 2026)
+- **[Encode, Think, Decode: Scaling test-time reasoning with recursive latent thoughts](https://arxiv.org/abs/2510.07358)** — Yeskendir Koishekenov, Aldo Lipani, Nicola Cancedda. (arXiv 2025)
+- **[Relaxed Recursive Transformers: Effective Parameter Sharing with Layer-wise LoRA](https://proceedings.iclr.cc/paper_files/paper/2025/file/54d6a55225cebbdc16fbb0e45c5bdf2b-Paper-Conference.pdf)** — Sangmin Bae, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Seungyeon Kim, Tal Schuster. (ICLR 2025)
+- **[Teaching Pretrained Language Models to Think Deeper with Retrofitted Recurrence](https://openreview.net/pdf?id=Oq3Xblt0x1)** — Sean Michael McLeish, Ang Li, John Kirchenbauer, Dayal Singh Kalra, Brian R. Bartoldson, Bhavya Kailkhura, Avi Schwarzschild, Jonas Geiping, Micah Goldblum, Tom Goldstein. (NeurIPS Efficient Reasoning Workshop 2025)
 
----
+### Training-Depth Exposure
 
-# C. Inter-Iteration State
+The depths executed during training provide the reference for evaluating generalization; depth extrapolation requires exceeding the maximum depth actually encountered.
 
-## C1. Pure Recurrence
+#### Forward depth
 
-Only the recurrent hidden state is passed forward.
+Training can execute a fixed recurrence count, sample depths, or route tokens under depth and capacity constraints. In RL-Halting, training unrolls to a depth cap to construct a stopping distribution, while the prediction loss is evaluated at a sampled exit.
 
-- **[Universal Transformers](https://arxiv.org/abs/1807.03819)** — Mostafa Dehghani et al. *ICLR 2019.*
-- **[ALBERT](https://arxiv.org/abs/1909.11942)** — Zhenzhong Lan et al. *ICLR 2020.*
-- **[MobileLLM](https://proceedings.mlr.press/v235/liu24ce.html)** — Zechun Liu et al. *ICML 2024.*
-- **[MoEUT](https://proceedings.neurips.cc/paper_files/paper/2024/hash/321387ba926b8e58d3591c0aeb52ffc2-Abstract-Conference.html)** — Róbert Csordás et al. *NeurIPS 2024.*
-- **[Relaxed Recursive Transformers](https://arxiv.org/abs/2410.20672)** — Sangmin Bae et al. *ICLR 2025.*
-- **[Ouro / Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741)** — Rui-Jie Zhu et al. *arXiv, 2025.*
+- **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
+- **[How Much Is One Recurrence Worth? Iso-Depth Scaling Laws for Looped Language Models](https://arxiv.org/abs/2604.21106)** — Kristian Schwethelm, Daniel Rueckert, Georgios Kaissis. (arXiv 2026)
+- **[HRM-Text: Efficient Pretraining Beyond Scaling](https://arxiv.org/pdf/2605.20613)** — Guan Wang, Changling Liu, Chenyu Wang, Cai Zhou, Yuhao Sun, Yifei Wu, Shuai Zhen, Luca Scimeca, Yasin Abbasi Yadkori. (arXiv 2026)
+- **[LoopFormer: Elastic-Depth Looped Transformers for Latent Reasoning via Shortcut Modulation](https://openreview.net/pdf?id=RzYXb5YWBs)** — Ahmadreza Jeddi, Marco Ciccone, Babak Taati. (ICLR 2026)
+- **[LoopMTP: A looped transformer guided by latent multi-token prediction](https://arxiv.org/pdf/2608.03624)** — Behzad Shomali, Markus Frey, David Berghaus, Joachim Koehler, Mehdi Ali. (arXiv 2026)
+- **[Parcae: Scaling Laws For Stable Looped Language Models](https://arxiv.org/abs/2604.12946)** — Hayden Prairie, Zachary Novack, Taylor Berg-Kirkpatrick, Daniel Y. Fu. (arXiv 2026)
+- **[Stabilizing Extrapolation in Looped Transformers via Learned Stochastic Stopping](https://openreview.net/forum?id=xExWu1Bhuw)** — Hsun-Yu Kuo, El Mahdi Chayti, Patrik Reizinger, Wieland Brendel, Martin Jaggi. (AdaptFM 2026)
+- **[Encode, Think, Decode: Scaling test-time reasoning with recursive latent thoughts](https://arxiv.org/abs/2510.07358)** — Yeskendir Koishekenov, Aldo Lipani, Nicola Cancedda. (arXiv 2025)
+- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://proceedings.neurips.cc/paper_files/paper/2025/file/8b08bbf8b420faa6eeb4020720582ec7-Paper-Conference.pdf)** — Sangmin Bae, Yujin Kim, Reza Bayat, Sungnyun Kim, Jiyoun Ha, Tal Schuster, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Aaron Courville, Se-Young Yun. (NeurIPS 2025)
+- **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
 
-## C2. Input Injection / Recall
+#### Depth variation
 
-The original input is re-injected across recurrent steps.
+Recurrence counts or their sampling distributions can follow a training schedule. Task-derived counts can also assign different depths to individual examples.
 
-- **[End-to-End Algorithm Synthesis with Recurrent Networks](https://arxiv.org/abs/2202.05826)** — Arpit Bansal et al. *arXiv, 2022.*
-- **[Looped Transformers Are Better at Learning Learning Algorithms](https://arxiv.org/abs/2311.12424)** — Liu Yang et al. *ICLR 2024.*
-- **[Looped Transformers for Length Generalization](https://proceedings.iclr.cc/paper_files/paper/2025/hash/25cc3adf8c85f7c70989cb8a97a691a7-Abstract-Conference.html)** — Ying Fan et al. *ICLR 2025.*
-- **[Scaling up Test-Time Compute with Latent Reasoning](https://proceedings.neurips.cc/paper_files/paper/2025/hash/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Abstract-Conference.html)** — Jonas Geiping et al. *NeurIPS 2025.*
-- **[Hierarchical Reasoning Model](https://arxiv.org/abs/2506.21734)** — Guan Wang et al. *arXiv, 2025.*
-- **[Less Is More: Recursive Reasoning with Tiny Networks](https://arxiv.org/abs/2510.04871)** — Alexia Jolicoeur-Martineau. *arXiv, 2025.*
-- **[Simply Stabilizing the Loop via Fully Looped Transformer](https://arxiv.org/abs/2605.18797)** — Rao Fu et al. *arXiv, 2026.*
-- **[Bridging the Gap Between Latent and Explicit Reasoning with Looped Transformers](https://arxiv.org/abs/2606.31779)** — Ying Fan, Anej Svete, Kangwook Lee. *arXiv, 2026.*
+- **[Enhancing Auto-regressive Chain-of-Thought through Loop-Aligned Reasoning](https://aclanthology.org/2026.eacl-long.97.pdf)** — Qifan Yu, Zhenyu He, Sijie Li, Zhou Xun, Jun Zhang, Jingjing Xu, Di He. (EACL 2026)
+- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
+- **[Looped Transformers for Length Generalization](https://proceedings.iclr.cc/paper_files/paper/2025/file/25cc3adf8c85f7c70989cb8a97a691a7-Paper-Conference.pdf)** — Ying Fan, Yilun Du, Kannan Ramchandran, Kangwook Lee. (ICLR 2025)
+- **[Teaching Pretrained Language Models to Think Deeper with Retrofitted Recurrence](https://openreview.net/pdf?id=Oq3Xblt0x1)** — Sean Michael McLeish, Ang Li, John Kirchenbauer, Dayal Singh Kalra, Brian R. Bartoldson, Bhavya Kailkhura, Avi Schwarzschild, Jonas Geiping, Micah Goldblum, Tom Goldstein. (NeurIPS Efficient Reasoning Workshop 2025)
+- **[Looped Transformers are Better at Learning Learning Algorithms](https://proceedings.iclr.cc/paper_files/paper/2024/file/b8402301e7f06bdc97a31bfaa653dc32-Paper-Conference.pdf)** — Liu Yang, Kangwook Lee, Robert Nowak, Dimitris Papailiopoulos. (ICLR 2024)
 
-## C3. Predicted-Embedding Feedback
+### Supervision and Objectives
 
-A predicted embedding is fed into the next recurrent iteration.
+Training objectives specify which recurrent states receive prediction losses, what they should predict, and how computation allocation is encouraged.
 
-- **[PonderLM: Pretraining Language Models to Ponder in Continuous Space](https://arxiv.org/abs/2505.20674)** — Boyi Zeng et al. *ICLR 2026.*
-- **[DiscoLoop: Looping Discrete Embeddings and Continuous Hidden States for Multi-Hop Reasoning](https://arxiv.org/abs/2607.00341)** — Hengyu Fu et al. *arXiv, 2026.*
+#### Prediction losses
 
-## C4. Attention over Earlier Iterations
+Prediction losses can supervise the final iteration, a selected window, multiple intermediate predictions, or supervision-segment boundaries. Weights can be fixed or derived from learned exit probabilities; RL-Halting evaluates the task loss at a sampled exit.
 
-Later recurrent steps directly attend to earlier iterations.
+- **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
+- **[HRM-Text: Efficient Pretraining Beyond Scaling](https://arxiv.org/pdf/2605.20613)** — Guan Wang, Changling Liu, Chenyu Wang, Cai Zhou, Yuhao Sun, Yifei Wu, Shuai Zhen, Luca Scimeca, Yasin Abbasi Yadkori. (arXiv 2026)
+- **[LoopFormer: Elastic-Depth Looped Transformers for Latent Reasoning via Shortcut Modulation](https://openreview.net/pdf?id=RzYXb5YWBs)** — Ahmadreza Jeddi, Marco Ciccone, Babak Taati. (ICLR 2026)
+- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
+- **[Stabilizing Extrapolation in Looped Transformers via Learned Stochastic Stopping](https://openreview.net/forum?id=xExWu1Bhuw)** — Hsun-Yu Kuo, El Mahdi Chayti, Patrik Reizinger, Wieland Brendel, Martin Jaggi. (AdaptFM 2026)
+- **[Less is More: Recursive Reasoning with Tiny Networks](https://arxiv.org/pdf/2510.04871)** — Alexia Jolicoeur-Martineau. (arXiv 2025)
+- **[Looped Transformers for Length Generalization](https://proceedings.iclr.cc/paper_files/paper/2025/file/25cc3adf8c85f7c70989cb8a97a691a7-Paper-Conference.pdf)** — Ying Fan, Yilun Du, Kannan Ramchandran, Kangwook Lee. (ICLR 2025)
+- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://proceedings.neurips.cc/paper_files/paper/2025/file/8b08bbf8b420faa6eeb4020720582ec7-Paper-Conference.pdf)** — Sangmin Bae, Yujin Kim, Reza Bayat, Sungnyun Kim, Jiyoun Ha, Tal Schuster, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Aaron Courville, Se-Young Yun. (NeurIPS 2025)
+- **[Relaxed Recursive Transformers: Effective Parameter Sharing with Layer-wise LoRA](https://proceedings.iclr.cc/paper_files/paper/2025/file/54d6a55225cebbdc16fbb0e45c5bdf2b-Paper-Conference.pdf)** — Sangmin Bae, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Seungyeon Kim, Tal Schuster. (ICLR 2025)
+- **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
+- **[Teaching Pretrained Language Models to Think Deeper with Retrofitted Recurrence](https://openreview.net/pdf?id=Oq3Xblt0x1)** — Sean Michael McLeish, Ang Li, John Kirchenbauer, Dayal Singh Kalra, Brian R. Bartoldson, Bhavya Kailkhura, Avi Schwarzschild, Jonas Geiping, Micah Goldblum, Tom Goldstein. (NeurIPS Efficient Reasoning Workshop 2025)
+- **[Looped Transformers are Better at Learning Learning Algorithms](https://proceedings.iclr.cc/paper_files/paper/2024/file/b8402301e7f06bdc97a31bfaa653dc32-Paper-Conference.pdf)** — Liu Yang, Kangwook Lee, Robert Nowak, Dimitris Papailiopoulos. (ICLR 2024)
 
-- **[CoTFormer](https://proceedings.iclr.cc/paper_files/paper/2025/hash/1eaa5146756be028ad6fff1efcc8e6bd-Abstract-Conference.html)** — Amirkeivan Mohtashami, Matteo Pagliardini, Martin Jaggi. *ICLR 2025.*
-- **[Think-at-Hard](https://arxiv.org/abs/2511.08577)** — Tianyu Fu et al. *arXiv, 2025.*
-- **[Depth-Recurrent Attention Mixtures: Giving Latent Reasoning the Attention It Deserves](https://arxiv.org/abs/2601.21582)** — Jonas Knupp et al. *arXiv, 2026.*
-- **[RecurTrace](https://arxiv.org/abs/2609.03379)** — Yuxiang Wang et al. *arXiv, 2026.*
+#### Target alignment
 
-## C5. Fixed Point / Implicit
+Structured targets can align reasoning steps with recurrent iterations or with latent sequence positions after recurrence.
 
-The recurrent computation is defined through an equilibrium/fixed point.
+- **[Bridging the Gap Between Latent and Explicit Reasoning with Looped Transformers](https://arxiv.org/pdf/2606.31779)** — Ying Fan, Anej Svete, Kangwook Lee. (arXiv 2026)
+- **[Enhancing Auto-regressive Chain-of-Thought through Loop-Aligned Reasoning](https://aclanthology.org/2026.eacl-long.97.pdf)** — Qifan Yu, Zhenyu He, Sijie Li, Zhou Xun, Jun Zhang, Jingjing Xu, Di He. (EACL 2026)
+- **[LoopMTP: A looped transformer guided by latent multi-token prediction](https://arxiv.org/pdf/2608.03624)** — Behzad Shomali, Markus Frey, David Berghaus, Joachim Koehler, Mehdi Ali. (arXiv 2026)
 
-- **[Deep Equilibrium Models](https://arxiv.org/abs/1909.01377)** — Shaojie Bai, J. Zico Kolter, Vladlen Koltun. *NeurIPS 2019.*
-- **[Implicit Language Models Are RNNs: Balancing Parallelization and Expressivity](https://arxiv.org/abs/2502.07827)** — Mark Schöne et al. *arXiv, 2025.*
-- **[Closed-Loop Transformers: Autoregressive Modeling as Iterative Latent Equilibrium](https://arxiv.org/abs/2511.21882)** — Akbar Anbar Jafari, Gholamreza Anbarjafari. *arXiv, 2025.*
-- **[Fixed-Point Reasoners](https://arxiv.org/abs/2606.18206)** — Sajad Movahedi et al. *arXiv, 2026.*
+#### Loss after state aggregation
 
----
+Intermediate states or predictions can be combined before applying a main prediction loss, with auxiliary supervision of individual states in some designs.
 
-# D. Sharing Strictness
+- **[LoopMTP: A looped transformer guided by latent multi-token prediction](https://arxiv.org/pdf/2608.03624)** — Behzad Shomali, Markus Frey, David Berghaus, Joachim Koehler, Mehdi Ali. (arXiv 2026)
+- **[Universal Transformers](https://openreview.net/pdf?id=HyzdRiR9Y7)** — Mostafa Dehghani, Stephan Gouws, Oriol Vinyals, Jakob Uszkoreit, Lukasz Kaiser. (ICLR 2019)
 
-## D1. Exact Tie, No Conditioning
+#### Allocation objectives
 
-The same parameters are reused exactly across recurrent iterations.
+Ponder costs and exit-distribution regularization shape learned computation budgets. Routing objectives supervise causal token assignments and balance capacity across depths.
 
-- **[ALBERT](https://arxiv.org/abs/1909.11942)** — Zhenzhong Lan et al. *ICLR 2020.*
-- **[Scaling up Test-Time Compute with Latent Reasoning](https://proceedings.neurips.cc/paper_files/paper/2025/hash/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Abstract-Conference.html)** — Jonas Geiping et al. *NeurIPS 2025.*
-- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741)** — Rui-Jie Zhu et al. *arXiv, 2025.*
-- **[Nanbeige4.2-3B](https://arxiv.org/abs/2607.22083)** — Nanbeige Lab et al. *arXiv, 2026.*
+- **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
+- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
+- **[Stabilizing Extrapolation in Looped Transformers via Learned Stochastic Stopping](https://openreview.net/forum?id=xExWu1Bhuw)** — Hsun-Yu Kuo, El Mahdi Chayti, Patrik Reizinger, Wieland Brendel, Martin Jaggi. (AdaptFM 2026)
+- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://proceedings.neurips.cc/paper_files/paper/2025/file/8b08bbf8b420faa6eeb4020720582ec7-Paper-Conference.pdf)** — Sangmin Bae, Yujin Kim, Reza Bayat, Sungnyun Kim, Jiyoun Ha, Tal Schuster, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Aaron Courville, Se-Young Yun. (NeurIPS 2025)
+- **[Universal Transformers](https://openreview.net/pdf?id=HyzdRiR9Y7)** — Mostafa Dehghani, Stephan Gouws, Oriol Vinyals, Jakob Uszkoreit, Lukasz Kaiser. (ICLR 2019)
 
-## D2. Timestep / Depth Encoding
+#### Reinforcement objectives
 
-The shared recurrent block is conditioned on the current loop/depth index.
+Policy-gradient objectives can train stopping decisions, while reinforcement learning over recurrent latent trajectories can reward useful intermediate computation and final outputs.
 
-- **[Universal Transformers](https://arxiv.org/abs/1807.03819)** — Mostafa Dehghani et al. *ICLR 2019.*
-- **[On Expressive Power of Looped Transformers: Theoretical Analysis and Enhancement via Timestep Encoding](https://arxiv.org/abs/2410.01405)** — Kevin Xu, Issei Sato. *arXiv, 2024.*
-- **[Inner Thinking Transformer](https://aclanthology.org/2025.acl-long.1369/)** — Yilong Chen et al. *ACL 2025.*
-- **[LoopFormer](https://arxiv.org/abs/2602.11451)** — Ahmadreza Jeddi et al. *arXiv, 2026.*
-- **[Universal Transformers for Circuit Computations](https://arxiv.org/abs/2608.31067)** — Takuya Ito et al. *arXiv, 2026.*
+- **[Prioritize the Process, Not Just the Outcome: Rewarding Latent Thought Trajectories Improves Reasoning in Looped Language Models](https://openreview.net/forum?id=cPAgJwcn3h)** — Jonathan Williams, Olga Russakovsky, Esin Tureci. (ICML 2026)
+- **[Stabilizing Extrapolation in Looped Transformers via Learned Stochastic Stopping](https://openreview.net/forum?id=xExWu1Bhuw)** — Hsun-Yu Kuo, El Mahdi Chayti, Patrik Reizinger, Wieland Brendel, Martin Jaggi. (AdaptFM 2026)
 
-## D3. Per-Loop Scalars, Gates, or Norms
+### Gradients and Stability
 
-Small loop-specific parameters modulate the shared computation.
+Loss placement, gradient propagation, and activation storage shape optimization in different ways, alongside the stability of recurrent states and exit gates.
 
-- **[Loop Neural Networks for Parameter Sharing](https://arxiv.org/abs/2409.14199)** — Kei-Sing Ng, Qingchen Wang. *arXiv, 2024.*
-- **[Sliced Recursive Transformer](https://arxiv.org/abs/2111.05297)** — Zhiqiang Shen, Zechun Liu, Eric Xing. *arXiv, 2021.*
-- **[LoopMoE: Unifying Iterative Computation with Mixture-of-Experts for Language Modeling](https://arxiv.org/abs/2606.04438)** — Wenkai Chen et al. *arXiv, 2026.*
+#### Gradient paths
 
-## D4. Per-Loop Low-Rank Adapters
+Truncated backpropagation limits the recurrent dependencies that receive gradients. TRM-Att, the Transformer variant of Less is More, retains gradients through the final complete recursion of each supervision segment and detaches states between segments. LoopFormer also uses stop-gradient consistency targets between trajectory endpoints.
 
-Iteration-specific low-rank adapters relax exact weight sharing.
+- **[HRM-Text: Efficient Pretraining Beyond Scaling](https://arxiv.org/pdf/2605.20613)** — Guan Wang, Changling Liu, Chenyu Wang, Cai Zhou, Yuhao Sun, Yifei Wu, Shuai Zhen, Luca Scimeca, Yasin Abbasi Yadkori. (arXiv 2026)
+- **[LoopFormer: Elastic-Depth Looped Transformers for Latent Reasoning via Shortcut Modulation](https://openreview.net/pdf?id=RzYXb5YWBs)** — Ahmadreza Jeddi, Marco Ciccone, Babak Taati. (ICLR 2026)
+- **[Less is More: Recursive Reasoning with Tiny Networks](https://arxiv.org/pdf/2510.04871)** — Alexia Jolicoeur-Martineau. (arXiv 2025)
+- **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
+- **[Teaching Pretrained Language Models to Think Deeper with Retrofitted Recurrence](https://openreview.net/pdf?id=Oq3Xblt0x1)** — Sean Michael McLeish, Ang Li, John Kirchenbauer, Dayal Singh Kalra, Brian R. Bartoldson, Bhavya Kailkhura, Avi Schwarzschild, Jonas Geiping, Micah Goldblum, Tom Goldstein. (NeurIPS Efficient Reasoning Workshop 2025)
+- **[Looped Transformers are Better at Learning Learning Algorithms](https://proceedings.iclr.cc/paper_files/paper/2024/file/b8402301e7f06bdc97a31bfaa653dc32-Paper-Conference.pdf)** — Liu Yang, Kangwook Lee, Robert Nowak, Dimitris Papailiopoulos. (ICLR 2024)
 
-- **[Relaxed Recursive Transformers](https://arxiv.org/abs/2410.20672)** — Sangmin Bae et al. *ICLR 2025.*
-- **[Think-at-Hard](https://arxiv.org/abs/2511.08577)** — Tianyu Fu et al. *arXiv, 2025.*
-- **[Retrofitting Recurrent Depth into a Pretrained Language Model: Installation, Extrapolation, Transfer, and Retention at Two Parameter Budgets](https://arxiv.org/abs/2608.11233)** — Mark Shapiro. *arXiv, 2026.*
+#### Activation storage
 
-## D5. Experts Specializing per Pass
+Activation checkpointing reduces memory use by recomputing intermediate activations while preserving gradient propagation through the retained graph.
 
-Sparse experts can specialize across recurrent iterations.
+- **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
 
-- **[Sparse Universal Transformer](https://aclanthology.org/2023.emnlp-main.12/)** — Shawn Tan et al. *EMNLP 2023.*
-- **[MoEUT](https://proceedings.neurips.cc/paper_files/paper/2024/hash/321387ba926b8e58d3591c0aeb52ffc2-Abstract-Conference.html)** — Róbert Csordás et al. *NeurIPS 2024.*
-- **[Mixture of Universal Experts: Scaling Virtual Width via Depth-Width Transformation](https://arxiv.org/abs/2603.04971)** — Yilong Chen et al. *arXiv, 2026.*
-- **[Sparse Layers Are Critical to Scaling Looped Language Models](https://arxiv.org/abs/2605.09165)** — Ryan Lee et al. *arXiv, 2026.*
-- **[LoopMoE](https://arxiv.org/abs/2606.04438)** — Wenkai Chen et al. *arXiv, 2026.*
-- **[Loop the Loopies!](https://arxiv.org/abs/2607.16051)** — Zitian Gao et al. *arXiv, 2026.*
-- **[SMELT](https://arxiv.org/abs/2609.01343)** — Shaowen Wang et al. *arXiv, 2026.*
+#### Stability
 
----
+Training and halting recipes address state collapse, uncontrolled recurrent-state norms, and premature exit-gate collapse. State conditioning, readout design, and learned stopping affect how useful additional iterations become.
 
-# E. Training Recipe
+- **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
+- **[Dense Supervision Is Not Enough: The Readout Blind Spot in Looped Language Models](https://arxiv.org/abs/2606.24898)** — Rituraj Sharma, Tu Vu. (arXiv 2026)
+- **[Parcae: Scaling Laws For Stable Looped Language Models](https://arxiv.org/abs/2604.12946)** — Hayden Prairie, Zachary Novack, Taylor Berg-Kirkpatrick, Daniel Y. Fu. (arXiv 2026)
+- **[Stabilizing Extrapolation in Looped Transformers via Learned Stochastic Stopping](https://openreview.net/forum?id=xExWu1Bhuw)** — Hsun-Yu Kuo, El Mahdi Chayti, Patrik Reizinger, Wieland Brendel, Martin Jaggi. (AdaptFM 2026)
+- **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
 
-## E1. Provenance
+## Inference
 
-### From Scratch
+Inference determines how much recurrent computation to execute, where to allocate it, and how to support it with attention, caching, and scheduling. Selecting an early prediction saves computation only when later updates are skipped.
 
-- **[Scaling up Test-Time Compute with Latent Reasoning](https://proceedings.neurips.cc/paper_files/paper/2025/hash/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Abstract-Conference.html)** — Jonas Geiping et al. *NeurIPS 2025.*
-- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741)** — Rui-Jie Zhu et al. *arXiv, 2025.*
-- **[Nanbeige4.2-3B](https://arxiv.org/abs/2607.22083)** — Nanbeige Lab et al. *arXiv, 2026.*
-- **[Loop the Loopies!](https://arxiv.org/abs/2607.16051)** — Zitian Gao et al. *arXiv, 2026.*
-- **[LoopCoder-v2](https://arxiv.org/abs/2606.18023)** — Jian Yang et al. *arXiv, 2026.*
+### Budgets and Allocation
 
-### Uptrained / Retrofitted
+A budget sets the available recurrent computation, while allocation determines how that computation is distributed across sequences or tokens.
 
-- **[Relaxed Recursive Transformers](https://arxiv.org/abs/2410.20672)** — Sangmin Bae et al. *ICLR 2025.*
-- **[Encode, Think, Decode](https://arxiv.org/abs/2510.07358)** — Yeskendir Koishekenov et al. *arXiv, 2025.*
-- **[Teaching Pretrained Language Models to Think Deeper with Retrofitted Recurrence](https://arxiv.org/abs/2511.07384)** — Sean McLeish et al. *arXiv, 2025.*
-- **[Think-at-Hard](https://arxiv.org/abs/2511.08577)** — Tianyu Fu et al. *arXiv, 2025.*
-- **[LoopUS](https://arxiv.org/abs/2605.11011)** — Taekhyun Park et al. *arXiv, 2026.*
+#### Specified budget
 
-### Training-Free
+A recurrence budget can be set globally or per request. LoopFormer conditions updates on progress and step size to adapt its trajectory to that budget; some fixed-loop studies instead train separate configurations for each loop count.
 
-- **[Skip a Layer or Loop It? Test-Time Depth Adaptation of Pretrained LLMs](https://arxiv.org/abs/2507.07996)** — Ziyue Li, Yang Li, Tianyi Zhou. *arXiv, 2025.*
-- **[Training-Free Looped Transformers](https://arxiv.org/abs/2605.23872)** — Lizhang Chen et al. *arXiv, 2026.*
-- **[Recirculation](https://arxiv.org/abs/2608.17981)** — Michael C. Mozer et al. *arXiv, 2026.*
+- **[LoopCoder-v2: Only Loop Once for Efficient Test-Time Computation Scaling](https://arxiv.org/abs/2606.18023)** — Jian Yang, Shawn Guo, Wei Zhang, Tianyu Zheng, Yaxin Du, Haau-Sing Li, Jiajun Wu, Yue Song, Yan Xing, Qingsong Cai, Zelong Huang, Chuan Hao, Ran Tao, Xianglong Liu, Wayne Xin Zhao, Mingjie Tang, Weifeng Lv, Ming Zhou, Bryan Dai. (arXiv 2026)
+- **[LoopFormer: Elastic-Depth Looped Transformers for Latent Reasoning via Shortcut Modulation](https://openreview.net/pdf?id=RzYXb5YWBs)** — Ahmadreza Jeddi, Marco Ciccone, Babak Taati. (ICLR 2026)
+- **[Encode, Think, Decode: Scaling test-time reasoning with recursive latent thoughts](https://arxiv.org/abs/2510.07358)** — Yeskendir Koishekenov, Aldo Lipani, Nicola Cancedda. (arXiv 2025)
+- **[Looped Transformers for Length Generalization](https://proceedings.iclr.cc/paper_files/paper/2025/file/25cc3adf8c85f7c70989cb8a97a691a7-Paper-Conference.pdf)** — Ying Fan, Yilun Du, Kannan Ramchandran, Kangwook Lee. (ICLR 2025)
+- **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
 
-## E2. Gradient Path
+#### Adaptive allocation
 
-### Full BPTT
+Computation can vary across whole sequences or individual tokens according to the input and intermediate states.
 
-- **[Less Is More: Recursive Reasoning with Tiny Networks](https://arxiv.org/abs/2510.04871)** — Alexia Jolicoeur-Martineau. *arXiv, 2025.*
-- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741)** — Rui-Jie Zhu et al. *arXiv, 2025.*
+- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
+- **[Stabilizing Extrapolation in Looped Transformers via Learned Stochastic Stopping](https://openreview.net/forum?id=xExWu1Bhuw)** — Hsun-Yu Kuo, El Mahdi Chayti, Patrik Reizinger, Wieland Brendel, Martin Jaggi. (AdaptFM 2026)
+- **[Inner Thinking Transformer: Leveraging Dynamic Depth Scaling to Foster Adaptive Internal Thinking](https://aclanthology.org/2025.acl-long.1369/)** — Yilong Chen, Junyuan Shang, Zhenyu Zhang, Yanxi Xie, Jiawei Sheng, Tingwen Liu, Shuohuan Wang, Yu Sun, Hua Wu, Haifeng Wang. (ACL 2025)
+- **[Investigating Recurrent Transformers with Dynamic Halt](https://arxiv.org/pdf/2402.00976)** — Jishnu Ray Chowdhury, Cornelia Caragea. (arXiv 2025)
+- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://proceedings.neurips.cc/paper_files/paper/2025/file/8b08bbf8b420faa6eeb4020720582ec7-Paper-Conference.pdf)** — Sangmin Bae, Yujin Kim, Reza Bayat, Sungnyun Kim, Jiyoun Ha, Tal Schuster, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Aaron Courville, Se-Young Yun. (NeurIPS 2025)
+- **[Universal Transformers](https://openreview.net/pdf?id=HyzdRiR9Y7)** — Mostafa Dehghani, Stephan Gouws, Oriol Vinyals, Jakob Uszkoreit, Lukasz Kaiser. (ICLR 2019)
 
-### Truncated BPTT
+### Stopping and Routing
 
-- **[Scaling up Test-Time Compute with Latent Reasoning](https://proceedings.neurips.cc/paper_files/paper/2025/hash/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Abstract-Conference.html)** — Jonas Geiping et al. *NeurIPS 2025.*
-- **[Universal Reasoning Model](https://arxiv.org/abs/2512.14693)** — Zitian Gao et al. *arXiv, 2025.*
+Learned controllers, routing policies, and post-hoc criteria determine whether further updates are executed and which states supply predictions.
 
-### One-Step Approximation
+#### Learned halting
 
-- **[Hierarchical Reasoning Model](https://arxiv.org/abs/2506.21734)** — Guan Wang et al. *arXiv, 2025.*
+Learned controllers can accumulate token-wise halting scores, construct exit distributions, or make sequence-level stopping decisions. PALBERT and Ouro use Q-exit, selecting the earliest iteration reaching a cumulative-probability threshold. The Less is More entry refers to the TRM-Att configuration.
 
-### Implicit Differentiation
+- **[Closing the Loop: Practical Training Recipes for Looped Language Models](https://arxiv.org/pdf/2610.00673)** — Andrei Marchenko, Viacheslav Bezrukov, Oleg Kashurin, Inessa Fedorova, Dmitry Bocharov, Yuliana Shakhvalieva, Maria Tikhonova, Valerii Ternovskii. (arXiv 2026)
+- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
+- **[Stabilizing Extrapolation in Looped Transformers via Learned Stochastic Stopping](https://openreview.net/forum?id=xExWu1Bhuw)** — Hsun-Yu Kuo, El Mahdi Chayti, Patrik Reizinger, Wieland Brendel, Martin Jaggi. (AdaptFM 2026)
+- **[Investigating Recurrent Transformers with Dynamic Halt](https://arxiv.org/pdf/2402.00976)** — Jishnu Ray Chowdhury, Cornelia Caragea. (arXiv 2025)
+- **[Less is More: Recursive Reasoning with Tiny Networks](https://arxiv.org/pdf/2510.04871)** — Alexia Jolicoeur-Martineau. (arXiv 2025)
+- **[PALBERT: Teaching ALBERT to Ponder](https://proceedings.neurips.cc/paper_files/paper/2022/file/5a9c1af5f76da0bd37903b6f23e96c74-Paper-Conference.pdf)** — Nikita Balagansky, Daniil Gavrilov. (NeurIPS 2022)
+- **[Universal Transformers](https://openreview.net/pdf?id=HyzdRiR9Y7)** — Mostafa Dehghani, Stephan Gouws, Oriol Vinyals, Jakob Uszkoreit, Lukasz Kaiser. (ICLR 2019)
 
-- **[Deep Equilibrium Models](https://arxiv.org/abs/1909.01377)** — Shaojie Bai, J. Zico Kolter, Vladlen Koltun. *NeurIPS 2019.*
+#### Routing
 
-### Activation-Compressed BPTT
+MoR token-choice policies assign depth in advance, while expert-choice policies select tokens for further updates at successive recurrences. ITT adaptively routes tokens for additional computation within designated layers.
 
-- **[LASER: Low-Rank Activation SVD for Efficient Recursion](https://arxiv.org/abs/2604.17224)** — Ege Çakar, Ketan Raghu, Lia Zheng. *arXiv, 2026.*
+- **[Inner Thinking Transformer: Leveraging Dynamic Depth Scaling to Foster Adaptive Internal Thinking](https://aclanthology.org/2025.acl-long.1369/)** — Yilong Chen, Junyuan Shang, Zhenyu Zhang, Yanxi Xie, Jiawei Sheng, Tingwen Liu, Shuohuan Wang, Yu Sun, Hua Wu, Haifeng Wang. (ACL 2025)
+- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://proceedings.neurips.cc/paper_files/paper/2025/file/8b08bbf8b420faa6eeb4020720582ec7-Paper-Conference.pdf)** — Sangmin Bae, Yujin Kim, Reza Bayat, Sungnyun Kim, Jiyoun Ha, Tal Schuster, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Aaron Courville, Se-Young Yun. (NeurIPS 2025)
 
-## E3. Loop Schedule
+#### Post-hoc stopping
 
-### Random Unrolling / Curriculum
+Changes between consecutive predictions or states provide stopping signals, including KL divergence between output distributions and distances between hidden states. PABEE uses prediction patience; its ALBERT configuration combines this rule with shared Transformer layers.
 
-- **[End-to-End Algorithm Synthesis with Recurrent Networks](https://arxiv.org/abs/2202.05826)** — Arpit Bansal et al. *arXiv, 2022.*
-- **[Looped Transformers Are Better at Learning Learning Algorithms](https://arxiv.org/abs/2311.12424)** — Liu Yang et al. *ICLR 2024.*
-- **[Teaching Pretrained Language Models to Think Deeper with Retrofitted Recurrence](https://arxiv.org/abs/2511.07384)** — Sean McLeish et al. *arXiv, 2025.*
+- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
+- **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
+- **[BERT Loses Patience: Fast and Robust Inference with Early Exit](https://proceedings.neurips.cc/paper_files/paper/2020/file/d4dd111a4fd973394238aca5c05bebe3-Paper.pdf)** — Wangchunshu Zhou, Canwen Xu, Tao Ge, Julian McAuley, Ke Xu, Furu Wei. (NeurIPS 2020)
 
-### Shortcut Consistency
+#### Output selection and halting diagnostics
 
-- **[LoopFormer](https://arxiv.org/abs/2602.11451)** — Ahmadreza Jeddi et al. *arXiv, 2026.*
+Confidence-based selection can choose a prediction after executing a bounded trajectory. Oracle selection across iterations helps diagnose the potential of intermediate outputs, while a learned policy can select outputs during execution. Computation savings require skipping subsequent updates.
 
-### Deep Supervision
+- **[Stabilizing Extrapolation in Looped Transformers via Learned Stochastic Stopping](https://openreview.net/forum?id=xExWu1Bhuw)** — Hsun-Yu Kuo, El Mahdi Chayti, Patrik Reizinger, Wieland Brendel, Martin Jaggi. (AdaptFM 2026)
+- **[Looped Transformers for Length Generalization](https://proceedings.iclr.cc/paper_files/paper/2025/file/25cc3adf8c85f7c70989cb8a97a691a7-Paper-Conference.pdf)** — Ying Fan, Yilun Du, Kannan Ramchandran, Kangwook Lee. (ICLR 2025)
 
-- **[HRM-Text: Efficient Pretraining Beyond Scaling](https://arxiv.org/abs/2605.20613)** — Guan Wang et al. *arXiv, 2026.*
+### Attention Context and Execution
 
-### RL over the Latent Trajectory
+Tokens that stop updating may still provide attention context, so cache policies and execution schedules must support heterogeneous recurrence depths.
 
-- **[Prioritize the Process, Not Just the Outcome: Rewarding Latent Thought Trajectories Improves Reasoning in Looped Language Models](https://arxiv.org/abs/2602.10520)** — Jonathan Williams, Esin Tureci. *arXiv, 2026.*
-- **[LoopRPT: Reinforcement Pretraining for Looped Language Models](https://arxiv.org/abs/2603.19714)** — Guo Tang et al. *arXiv, 2026.*
+#### KV organization
 
-## E4. Stability Machinery
+Attention can retain depth-specific key–value states or reuse cached states across recurrences; shared weights alone do not imply shared KVs.
 
-- **[On the Residual Scaling of Looped Transformers: Stability and Transferability](https://arxiv.org/abs/2606.18524)** — Shaowen Wang et al. *arXiv, 2026.*
-- **[DeepLoop: Depth Scaling for Looped Transformers](https://arxiv.org/abs/2607.13491)** — Shuzhen Li, Yifan Zhang, Jiacheng Guo, Quanquan Gu, Mengdi Wang. *arXiv, 2026.*
-- **[Stabilizing Recurrent Dynamics for Test-Time Scalable Latent Reasoning in Looped Language Models](https://arxiv.org/abs/2605.26733)** — Xiao-Wen Yang et al. *arXiv, 2026.*
-- **[Simply Stabilizing the Loop via Fully Looped Transformer](https://arxiv.org/abs/2605.18797)** — Rao Fu et al. *arXiv, 2026.*
-- **[Stability and Generalization in Looped Transformers](https://arxiv.org/abs/2604.15259)** — Asher Labovich. *arXiv, 2026.*
+- **[Memory-Efficient Looped Transformer: Decoupling Compute from Memory in Looped Language Models](https://arxiv.org/pdf/2605.07721)** — Victor Conchello Vendrell, Arnau Padres Masdemont, Niccolò Grillo, Jordi Ros-Giralt, Arash Behboodi, Fabio Valerio Massoli. (arXiv 2026)
+- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/pdf/2510.25741)** — Rui-Jie Zhu, Zixuan Wang, Kai Hua, Tianyu Zhang, Ziniu Li, Haoran Que, Boyi Wei, Zixin Wen, Fan Yin, He Xing, Lu Li, Jiajun Shi, Kaijing Ma, Shanda Li, Taylor Kergan, Andrew Smith, Xingwei Qu, Mude Hui, Bohong Wu, Qiyang Min, Hongzhi Huang, Xun Zhou, Wei Ye, Jiaheng Liu, Jian Yang, Yunfeng Shi, Chenghua Lin, Enduo Zhao, Tianle Cai, Ge Zhang, Wenhao Huang, Yoshua Bengio, Jason Eshraghian. (arXiv 2026)
+- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://proceedings.neurips.cc/paper_files/paper/2025/file/8b08bbf8b420faa6eeb4020720582ec7-Paper-Conference.pdf)** — Sangmin Bae, Yujin Kim, Reza Bayat, Sungnyun Kim, Jiyoun Ha, Tal Schuster, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Aaron Courville, Se-Young Yun. (NeurIPS 2025)
+- **[Scaling up Test-Time Compute with Latent Reasoning: A Recurrent Depth Approach](https://proceedings.neurips.cc/paper_files/paper/2025/file/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Paper-Conference.pdf)** — Jonas Geiping, Sean McLeish, Neel Jain, John Kirchenbauer, Siddharth Singh, Brian Bartoldson, Bhavya Kailkhura, Abhinav Bhatele, Tom Goldstein. (NeurIPS 2025)
 
----
+#### KV transformations
 
-# F. Memory / KV Strategy
+Gated aggregation and compressed representations reduce cache storage while changing how recurrent information is supplied to attention.
 
-## F1. Separate Cache per (Layer, Loop)
+- **[Looped Latent Attention: Cross-Loop KV Compression for Looped Transformers](https://arxiv.org/pdf/2607.15456)** — James O' Neill, Fergal Reid. (arXiv 2026)
+- **[Memory-Efficient Looped Transformer: Decoupling Compute from Memory in Looped Language Models](https://arxiv.org/pdf/2605.07721)** — Victor Conchello Vendrell, Arnau Padres Masdemont, Niccolò Grillo, Jordi Ros-Giralt, Arash Behboodi, Fabio Valerio Massoli. (arXiv 2026)
 
-A separate KV cache is retained for every loop.
+#### Depth-wise batching
 
-- **[Scaling up Test-Time Compute with Latent Reasoning](https://proceedings.neurips.cc/paper_files/paper/2025/hash/3b01972cf31e6fa0fe29e4b8b5c2a0a1-Abstract-Conference.html)** — Jonas Geiping et al. *NeurIPS 2025.*
-- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741)** — Rui-Jie Zhu et al. *arXiv, 2025.*
-- **[Nanbeige4.2-3B](https://arxiv.org/abs/2607.22083)** — Nanbeige Lab et al. *arXiv, 2026.*
+Ready applications of the shared core can be batched together even when their recurrence indices differ.
 
-## F2. Share First-Loop KV
+- **[Depth-adaptive Inference of Looped Language Models via Continuous Depth Batching](https://arxiv.org/pdf/2608.09444)** — Kristian Schwethelm, Daniel Rueckert, Georgios Kaissis. (arXiv 2026)
+- **[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](https://proceedings.neurips.cc/paper_files/paper/2025/file/8b08bbf8b420faa6eeb4020720582ec7-Paper-Conference.pdf)** — Sangmin Bae, Yujin Kim, Reza Bayat, Sungnyun Kim, Jiyoun Ha, Tal Schuster, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Aaron Courville, Se-Young Yun. (NeurIPS 2025)
+- **[Relaxed Recursive Transformers: Effective Parameter Sharing with Layer-wise LoRA](https://proceedings.iclr.cc/paper_files/paper/2025/file/54d6a55225cebbdc16fbb0e45c5bdf2b-Paper-Conference.pdf)** — Sangmin Bae, Adam Fisch, Hrayr Harutyunyan, Ziwei Ji, Seungyeon Kim, Tal Schuster. (ICLR 2025)
 
-KV states from the first recurrence are reused.
+#### Verified drafting
 
-- **[Mixture-of-Recursions](https://arxiv.org/abs/2507.10524)** — Sangmin Bae et al. *NeurIPS 2025.*
-- **[Parallel Loop Transformer](https://arxiv.org/abs/2510.24824)** — Bohong Wu et al. *arXiv, 2025.*
-- **[Scaling Latent Reasoning via Looped Language Models](https://arxiv.org/abs/2510.25741)** — Rui-Jie Zhu et al. *arXiv, 2025.*
+Shallow recurrent states propose tokens that deeper computation verifies. Speculative decoding uses verification and correction to preserve the decoding distribution of the full-depth target model.
 
-## F3. Active-Token / Gated Single Cache
+- **[LoopSpec: Pipelined Self-Speculative Decoding for Looped Transformers](https://arxiv.org/pdf/2609.17184)** — SangLyul Cho, Langqing Cui, Sehoon Kim, Dongsu Han, Insu Han. (arXiv 2026)
 
-Only active token states are stored or one cache is updated with a gate.
+#### Parallel execution across loops
 
-- **[Mixture-of-Recursions](https://arxiv.org/abs/2507.10524)** — Sangmin Bae et al. *NeurIPS 2025.*
-- **[AdaPonderLM](https://arxiv.org/abs/2603.01914)** — Shixiang Song et al. *arXiv, 2026.*
-- **[Memory-Efficient Looped Transformer](https://arxiv.org/abs/2605.07721)** — Victor Conchello Vendrell et al. *arXiv, 2026.*
+Modified recurrent dependencies allow loop stages to overlap, increasing execution parallelism. This changes how information passes between iterations and complements scheduling methods that batch ready updates.
 
-## F4. Compressed or Sub-Quadratic
-
-The recurrent KV/attention representation is compressed or replaced by a more memory-efficient mechanism.
-
-- **[Looped Latent Attention: Cross-Loop KV Compression for Looped Transformers](https://arxiv.org/abs/2607.15456)** — James O'Neill, Fergal Reid. *arXiv, 2026.*
-- **[LoopQ: Quantization for Recursive Transformers](https://arxiv.org/abs/2605.16343)** — Rui Fang, Hsi-Wen Chen, Ming-Syan Chen. *arXiv, 2026.*
-- **[LT²: Linear-Time Looped Transformers](https://arxiv.org/abs/2605.20670)** — Chunyuan Deng et al. *arXiv, 2026.*
-- **[Allocating Recurrent Compute in Looped Language Models](https://arxiv.org/abs/2608.18230)** — Ruhai Lin et al. *arXiv, 2026.*
-
-## F5. Serving-Level Scheduling
-
-The optimization is implemented at the inference/serving scheduler level.
-
-- **[Relaxed Recursive Transformers: Effective Parameter Sharing with Layer-Wise LoRA](https://arxiv.org/abs/2410.20672)** — Sangmin Bae et al. *ICLR 2025.*
-- **[Efficient Parallel Samplers for Recurrent-Depth Models and Their Connection to Diffusion Language Models](https://arxiv.org/abs/2510.14961)** — Jonas Geiping, Xinyu Yang, Guinan Su. *arXiv, 2025.*
-- **[Depth-Adaptive Inference of Looped Language Models via Continuous Depth Batching](https://arxiv.org/abs/2608.09444)** — Kristian Schwethelm, Daniel Rueckert, Georgios Kaissis. *arXiv, 2026.*
-
----
-
-## Contributing
-
-Contributions are welcome. Please keep new entries consistent with the format:
-
-```markdown
-- **[Paper Title](paper-link)** — Author 1, Author 2, et al. *Venue, Year.*
-```
+- **[LoopCoder-v2: Only Loop Once for Efficient Test-Time Computation Scaling](https://arxiv.org/abs/2606.18023)** — Jian Yang, Shawn Guo, Wei Zhang, Tianyu Zheng, Yaxin Du, Haau-Sing Li, Jiajun Wu, Yue Song, Yan Xing, Qingsong Cai, Zelong Huang, Chuan Hao, Ran Tao, Xianglong Liu, Wayne Xin Zhao, Mingjie Tang, Weifeng Lv, Ming Zhou, Bryan Dai. (arXiv 2026)
+- **[Parallel Loop Transformer for Efficient Test-Time Computation Scaling](https://arxiv.org/abs/2510.24824)** — Bohong Wu, Mengzhao Chen, Xiang Luo, Shen Yan, Qifan Yu, Fan Xia, Tianqi Zhang, Hongrui Zhan, Zheng Zhong, Xun Zhou, Siyuan Qiao, Xingyan Bin. (arXiv 2025)
